@@ -1,45 +1,69 @@
 "use client";
 import { useState } from "react";
 import Image from "next/image";
-import { Trophy, Shield, BarChart2, AlertCircle } from "lucide-react";
+import { Trophy, Shield, BarChart2, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
-const USERS: Record<string, { password: string; redirect: string; label: string }> = {
-  admin:       { password: "123", redirect: "/admin",     label: "Platform Admin" },
-  organizator: { password: "123", redirect: "/organizer", label: "Turnuva Organizatörü" },
-  takim:       { password: "123", redirect: "/captain",   label: "Takım Kaptanı" },
-};
 
 export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    const user = USERS[username.trim().toLowerCase()];
-    if (!user || user.password !== password) {
-      setError("Kullanıcı adı veya şifre hatalı.");
-      return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Giriş başarısız.");
+        return;
+      }
+      router.push(data.redirect);
+      router.refresh();
+    } catch {
+      setError("Sunucu bağlantısı kurulamadı.");
+    } finally {
+      setLoading(false);
     }
-    router.push(user.redirect);
+  }
+
+  function quickLogin(username: string, redirect: string) {
+    setUsername(username);
+    setPassword("123");
+    // direkt fetch ile giriş yap
+    setLoading(true);
+    fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password: "123" }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) { router.push(data.redirect); router.refresh(); }
+        else setError(data.error || "Giriş başarısız.");
+      })
+      .catch(() => setError("Sunucu bağlantısı kurulamadı."))
+      .finally(() => setLoading(false));
   }
 
   return (
     <div className="min-h-screen flex">
-      {/* Left panel */}
+      {/* Sol panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#0F1F47] flex-col justify-between p-12 relative overflow-hidden">
         <div className="absolute inset-0 opacity-5">
           {Array.from({ length: 8 }).map((_, i) =>
             Array.from({ length: 6 }).map((_, j) => (
-              <div
-                key={`${i}-${j}`}
-                className="absolute w-16 h-16 border border-white rounded-full"
-                style={{ left: `${i * 180 - 40}px`, top: `${j * 160 - 40}px` }}
-              />
+              <div key={`${i}-${j}`} className="absolute w-16 h-16 border border-white rounded-full"
+                style={{ left: `${i * 180 - 40}px`, top: `${j * 160 - 40}px` }} />
             ))
           )}
         </div>
@@ -80,27 +104,28 @@ export default function LoginPage() {
             ))}
           </div>
 
-          {/* Demo credentials box */}
+          {/* Demo bilgileri */}
           <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
             <div className="text-[#94A3B8] text-xs font-semibold uppercase tracking-wider mb-3">Demo Hesapları</div>
-            {Object.entries(USERS).map(([u, info]) => (
-              <div key={u} className="flex items-center justify-between">
-                <span className="text-white text-sm font-mono">{u}</span>
-                <span className="text-[#64748B] text-xs">/ 123 → {info.label}</span>
+            {[
+              { user: "admin",       label: "Platform Admin" },
+              { user: "organizator", label: "Turnuva Organizatörü" },
+              { user: "takim",       label: "Takım Kaptanı" },
+            ].map((r) => (
+              <div key={r.user} className="flex items-center justify-between">
+                <span className="text-white text-sm font-mono">{r.user}</span>
+                <span className="text-[#64748B] text-xs">/ 123 → {r.label}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="relative z-10 text-[#475569] text-xs">
-          © 2026 AsistGol. Tüm hakları saklıdır.
-        </div>
+        <div className="relative z-10 text-[#475569] text-xs">© 2026 AsistGol. Tüm hakları saklıdır.</div>
       </div>
 
-      {/* Right panel */}
+      {/* Sağ panel */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 bg-[#F4F6F9]">
         <div className="w-full max-w-sm">
-          {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
             <Image src="/logo-icon.svg" alt="AsistGol" width={36} height={40} />
             <span className="text-[#0F1F47] font-extrabold text-xl">asist<span className="text-[#F59E0B]">gol</span></span>
@@ -115,7 +140,7 @@ export default function LoginPage() {
               <input
                 type="text"
                 value={username}
-                onChange={e => setUsername(e.target.value)}
+                onChange={(e) => setUsername(e.target.value)}
                 placeholder="admin, organizator veya takim"
                 className="w-full px-4 py-2.5 text-sm border border-[#E5E7EB] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B] transition-all"
                 autoComplete="username"
@@ -131,7 +156,7 @@ export default function LoginPage() {
               <input
                 type="password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full px-4 py-2.5 text-sm border border-[#E5E7EB] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B] transition-all"
                 autoComplete="current-password"
@@ -147,25 +172,29 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="w-full bg-[#0F1F47] text-white font-semibold py-2.5 rounded-lg hover:bg-[#1A2F5A] transition-colors text-sm"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-[#0F1F47] text-white font-semibold py-2.5 rounded-lg hover:bg-[#1A2F5A] transition-colors text-sm disabled:opacity-60"
             >
-              Giriş Yap
+              {loading ? <><Loader2 size={15} className="animate-spin" /> Giriş yapılıyor...</> : "Giriş Yap"}
             </button>
           </form>
 
-          {/* Demo credentials */}
+          {/* Demo butonları */}
           <div className="mt-6 p-4 bg-white border border-[#E5E7EB] rounded-xl">
-            <div className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-3">Demo Hesapları (şifre: 123)</div>
+            <div className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-3">
+              Demo Hesapları (şifre: 123)
+            </div>
             <div className="space-y-2">
               {[
-                { user: "admin",       label: "Platform Admin",         color: "bg-[#EF4444]", redirect: "/admin" },
-                { user: "organizator", label: "Turnuva Organizatörü",   color: "bg-[#3B82F6]", redirect: "/organizer" },
-                { user: "takim",       label: "Takım Kaptanı",          color: "bg-[#10B981]", redirect: "/captain" },
+                { user: "admin",       label: "Platform Admin",       color: "bg-[#EF4444]", redirect: "/admin" },
+                { user: "organizator", label: "Turnuva Organizatörü", color: "bg-[#3B82F6]", redirect: "/organizer" },
+                { user: "takim",       label: "Takım Kaptanı",        color: "bg-[#10B981]", redirect: "/captain" },
               ].map((r) => (
                 <button
                   key={r.user}
-                  onClick={() => router.push(r.redirect)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F4F6F9] transition-colors text-left"
+                  onClick={() => quickLogin(r.user, r.redirect)}
+                  disabled={loading}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F4F6F9] transition-colors text-left disabled:opacity-60"
                 >
                   <div className={`w-7 h-7 ${r.color} rounded-md flex items-center justify-center text-white text-xs font-bold shrink-0`}>
                     {r.user[0].toUpperCase()}

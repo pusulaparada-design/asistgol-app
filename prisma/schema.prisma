@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Kullanıcılar ────────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  role      Role
+  name      String
+  email     String?  @unique
+  phone     String?
+  city      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organizedTournaments Tournament[]   @relation("OrganizerTournaments")
+  captainTeams         Team[]         @relation("CaptainTeams")
+  announcements        Announcement[]
+}
+
+enum Role {
+  ADMIN
+  ORGANIZER
+  CAPTAIN
+}
+
+// ─── Turnuva ─────────────────────────────────────────────────────
+model Tournament {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  city        String
+  venue       String?
+  format      TournamentFormat
+  status      TournamentStatus @default(DRAFT)
+  startDate   DateTime?
+  endDate     DateTime?
+  deadline    DateTime?
+  maxTeams    Int
+  fee         Int?
+  prize       String?
+  rules       String?
+
+  groupCount      Int?
+  advanceCount    Int?
+  matchFormat     MatchFormat @default(SINGLE)
+  winPoints       Int         @default(3)
+  trackGoals      Boolean     @default(true)
+  trackCards      Boolean     @default(true)
+  yellowCardLimit Int         @default(3)
+  thirdPlace      Boolean     @default(true)
+  extraTime       Boolean     @default(true)
+
+  organizerId String
+  organizer   User   @relation("OrganizerTournaments", fields: [organizerId], references: [id])
+
+  registrations TeamRegistration[]
+  groups        Group[]
+  matches       Match[]
+  announcements Announcement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TournamentFormat {
+  GROUP_KNOCKOUT
+  GROUP_ONLY
+  KNOCKOUT_ONLY
+}
+
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION
+  ACTIVE
+  COMPLETED
+}
+
+enum MatchFormat {
+  SINGLE
+  DOUBLE
+}
+
+// ─── Takım ───────────────────────────────────────────────────────
+model Team {
+  id          String  @id @default(cuid())
+  name        String
+  city        String?
+  color       String?
+  description String?
+
+  captainId String
+  captain   User   @relation("CaptainTeams", fields: [captainId], references: [id])
+
+  players       Player[]
+  registrations TeamRegistration[]
+  homeMatches   Match[]    @relation("HomeTeam")
+  awayMatches   Match[]    @relation("AwayTeam")
+  groupTeams    GroupTeam[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Oyuncu ───────────────────────────────────────────────────────
+model Player {
+  id       String       @id @default(cuid())
+  name     String
+  number   Int?
+  position String?
+  status   PlayerStatus @default(ACTIVE)
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  goals   Goal[]
+  assists Assist[]
+  cards   Card[]
+
+  createdAt DateTime @default(now())
+}
+
+enum PlayerStatus {
+  ACTIVE
+  SUSPENDED
+  INJURED
+}
+
+// ─── Kayıt ───────────────────────────────────────────────────────
+model TeamRegistration {
+  id              String             @id @default(cuid())
+  status          RegistrationStatus @default(PENDING)
+  note            String?
+  rejectionReason String?
+
+  teamId       String
+  tournamentId String
+  team         Team       @relation(fields: [teamId], references: [id])
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  groupTeam    GroupTeam?
+
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, tournamentId])
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ─── Grup ────────────────────────────────────────────────────────
+model Group {
+  id   String @id @default(cuid())
+  name String
+
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+
+  teams   GroupTeam[]
+  matches Match[]
+
+  createdAt DateTime @default(now())
+}
+
+model GroupTeam {
+  id             String @id @default(cuid())
+  groupId        String
+  teamId         String
+  registrationId String @unique
+
+  group        Group            @relation(fields: [groupId], references: [id])
+  team         Team             @relation(fields: [teamId], references: [id])
+  registration TeamRegistration @relation(fields: [registrationId], references: [id])
+
+  @@unique([groupId, teamId])
+}
+
+// ─── Maç ─────────────────────────────────────────────────────────
+model Match {
+  id    String @id @default(cuid())
+  round String?
+  leg   Int?   @default(1)
+
+  homeScore Int?
+  awayScore Int?
+
+  date   DateTime?
+  time   String?
+  venue  String?
+  status MatchStatus @default(SCHEDULED)
+  notes  String?
+
+  tournamentId String
+  groupId      String?
+  homeTeamId   String
+  awayTeamId   String
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id])
+  group      Group?     @relation(fields: [groupId], references: [id])
+  homeTeam   Team       @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam   Team       @relation("AwayTeam", fields: [awayTeamId], references: [id])
+
+  goals   Goal[]
+  assists Assist[]
+  cards   Card[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  PLAYED
+  POSTPONED
+}
+
+// ─── Gol ─────────────────────────────────────────────────────────
+model Goal {
+  id      String  @id @default(cuid())
+  minute  Int?
+  ownGoal Boolean @default(false)
+
+  matchId  String
+  playerId String
+  teamId   String
+
+  match  Match  @relation(fields: [matchId], references: [id])
+  player Player @relation(fields: [playerId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+// ─── Asist ───────────────────────────────────────────────────────
+model Assist {
+  id     String @id @default(cuid())
+  minute Int?
+
+  matchId  String
+  playerId String
+
+  match  Match  @relation(fields: [matchId], references: [id])
+  player Player @relation(fields: [playerId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+// ─── Kart ────────────────────────────────────────────────────────
+model Card {
+  id     String   @id @default(cuid())
+  type   CardType
+  minute Int?
+
+  matchId  String
+  playerId String
+
+  match  Match  @relation(fields: [matchId], references: [id])
+  player Player @relation(fields: [playerId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+enum CardType {
+  YELLOW
+  RED
+}
+
+// ─── Duyuru ──────────────────────────────────────────────────────
+model Announcement {
+  id      String @id @default(cuid())
+  title   String
+  body    String
+  target  String @default("all")
+
+  tournamentId String?
+  organizerId  String
+
+  tournament Tournament? @relation(fields: [tournamentId], references: [id])
+  organizer  User        @relation(fields: [organizerId], references: [id])
+
+  createdAt DateTime @default(now())
+}
