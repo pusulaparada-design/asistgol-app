@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 52" fill="none">
+  <!-- Shield icon -->
+  <path d="M10 6 L22 6 L22 26 Q22 34 16 38 Q10 34 10 26 Z" fill="#0F1F47"/>
+  <path d="M11 7 L21 7 L21 26 Q21 33 16 37 Q11 33 11 26 Z" fill="#1A2F5A"/>
+  <!-- Shield border gold -->
+  <path d="M10 6 L22 6 L22 26 Q22 34 16 38 Q10 34 10 26 Z" fill="none" stroke="#F59E0B" stroke-width="1.5"/>
+  <!-- Football on shield -->
+  <circle cx="16" cy="21" r="6" fill="none" stroke="white" stroke-width="1"/>
+  <circle cx="16" cy="21" r="2" fill="white"/>
+  <path d="M13 18 L16 15 L19 18" fill="none" stroke="white" stroke-width="0.8"/>
+  <path d="M13 24 L16 27 L19 24" fill="none" stroke="white" stroke-width="0.8"/>
+  <path d="M10.5 21 L13 18 M10.5 21 L13 24" fill="none" stroke="white" stroke-width="0.8"/>
+  <path d="M21.5 21 L19 18 M21.5 21 L19 24" fill="none" stroke="white" stroke-width="0.8"/>
+  <!-- Stars above shield -->
+  <text x="16" y="10" text-anchor="middle" fill="#F59E0B" font-size="5" font-family="serif">★★★</text>
+
+  <!-- AsistGol text -->
+  <text x="32" y="26" font-family="'Inter', 'Segoe UI', sans-serif" font-size="22" font-weight="800" fill="#0F1F47" letter-spacing="-0.5">asist</text>
+  <text x="94" y="26" font-family="'Inter', 'Segoe UI', sans-serif" font-size="22" font-weight="800" fill="#F59E0B" letter-spacing="-0.5">gol</text>
+  <!-- Subtitle -->
+  <text x="32" y="38" font-family="'Inter', 'Segoe UI', sans-serif" font-size="7" font-weight="500" fill="#6B7280" letter-spacing="1.5">FUTBOL TURNUVASI PLATFORMU</text>
+</svg>
