@@ -1,50 +1,37 @@
+export const dynamic = "force-dynamic";
 import { Target, Star, Trophy } from "lucide-react";
 import { PageContent, PageHeader, Card, CardHeader, StatCard } from "@/components/ui/PageShell";
+import { getTournamentStats, getTopScorers } from "@/lib/actions/match";
+import { prisma } from "@/lib/prisma";
 
-const topScorers = [
-  { rank: 1, name: "Emre Demir", team: "Aslan FC", goals: 8, assists: 3 },
-  { rank: 2, name: "Tolga Ak", team: "Rüzgar Spor", goals: 7, assists: 2 },
-  { rank: 3, name: "Baran Kurt", team: "Çınar FC", goals: 5, assists: 4 },
-  { rank: 4, name: "Serdar Öz", team: "Kaplan SK", goals: 4, assists: 1 },
-  { rank: 5, name: "Özgür Can", team: "Ateş FC", goals: 4, assists: 2 },
-  { rank: 6, name: "Ali Güç", team: "Fırtına FC", goals: 3, assists: 3 },
-];
+export default async function TournamentStatsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
 
-const topAssists = [
-  { rank: 1, name: "Baran Kurt", team: "Çınar FC", assists: 4 },
-  { rank: 2, name: "Emre Demir", team: "Aslan FC", assists: 3 },
-  { rank: 3, name: "Ali Güç", team: "Fırtına FC", assists: 3 },
-  { rank: 4, name: "Tolga Ak", team: "Rüzgar Spor", assists: 2 },
-  { rank: 5, name: "Özgür Can", team: "Ateş FC", assists: 2 },
-];
+  const [stats, topScorers, tournament] = await Promise.all([
+    getTournamentStats(id).catch(() => null),
+    getTopScorers(id).catch(() => []),
+    prisma.tournament.findUnique({ where: { id }, select: { name: true } }),
+  ]);
 
-const teamStats = [
-  { name: "Rüzgar Spor", goals: 12, goalsAgainst: 3, wins: 4, draws: 0, losses: 0, cleanSheets: 2 },
-  { name: "Aslan FC", goals: 10, goalsAgainst: 4, wins: 3, draws: 1, losses: 0, cleanSheets: 1 },
-  { name: "Çınar FC", goals: 8, goalsAgainst: 6, wins: 2, draws: 1, losses: 1, cleanSheets: 1 },
-  { name: "Demir SK", goals: 7, goalsAgainst: 5, wins: 2, draws: 1, losses: 1, cleanSheets: 0 },
-  { name: "Kaplan SK", goals: 5, goalsAgainst: 8, wins: 1, draws: 1, losses: 2, cleanSheets: 0 },
-];
+  const {
+    totalGoals = 0,
+    avgGoals = 0,
+    cleanSheets = 0,
+    yellowCards = 0,
+    teamStats = [],
+    topAssists = [],
+    cardStats = [],
+  } = stats ?? {};
 
-const cardStats = [
-  { name: "Ateş FC", yellow: 6, red: 1 },
-  { name: "Kaplan SK", yellow: 5, red: 0 },
-  { name: "Fırtına FC", yellow: 4, red: 1 },
-  { name: "Demir SK", yellow: 3, red: 0 },
-  { name: "Çınar FC", yellow: 2, red: 0 },
-  { name: "Aslan FC", yellow: 1, red: 0 },
-];
-
-export default function TournamentStatsPage({ params }: { params: { id: string } }) {
   return (
     <PageContent>
-      <PageHeader title="Turnuva İstatistikleri" subtitle="Ramazan Kupası 2026" />
+      <PageHeader title="Turnuva İstatistikleri" subtitle={tournament?.name ?? "—"} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Toplam Gol" value={52} icon={Target} color="green" sublabel="18 maçta" />
-        <StatCard label="Maç Başı Gol" value="2.9" icon={Target} color="gold" />
-        <StatCard label="Gol Atsız Maç" value={4} icon={Trophy} color="teal" sublabel="clean sheet" />
-        <StatCard label="Toplam Sarı Kart" value={21} icon={Star} color="orange" />
+        <StatCard label="Toplam Gol" value={totalGoals} icon={Target} color="green" />
+        <StatCard label="Maç Başı Gol" value={avgGoals} icon={Target} color="gold" />
+        <StatCard label="Gol Atsız Maç" value={cleanSheets} icon={Trophy} color="teal" sublabel="clean sheet" />
+        <StatCard label="Toplam Sarı Kart" value={yellowCards} icon={Star} color="orange" />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -52,18 +39,16 @@ export default function TournamentStatsPage({ params }: { params: { id: string }
         <Card>
           <CardHeader title="Golcü Sıralaması" subtitle="Turnuva topçuları" />
           <div className="divide-y divide-[#F3F4F6]">
-            {topScorers.map((s) => (
-              <div key={s.name} className="flex items-center gap-3 px-4 py-3">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                  s.rank === 1 ? "bg-[#FEF3C7] text-[#D97706]" : s.rank === 2 ? "bg-[#F3F4F6] text-[#374151]" : s.rank === 3 ? "bg-[#FEF2F2] text-[#DC2626]" : "bg-[#F3F4F6] text-[#9CA3AF]"
-                }`}>{s.rank}</div>
+            {topScorers.length === 0 && <div className="py-6 text-center text-sm text-[#9CA3AF]">Henüz gol yok</div>}
+            {topScorers.map(({ player, goals }, i) => (
+              <div key={player.id} className="flex items-center gap-3 px-4 py-3">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? "bg-[#FEF3C7] text-[#D97706]" : i === 1 ? "bg-[#F3F4F6] text-[#374151]" : i === 2 ? "bg-[#FEF2F2] text-[#DC2626]" : "bg-[#F3F4F6] text-[#9CA3AF]"}`}>{i + 1}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-[#111827]">{s.name}</div>
-                  <div className="text-xs text-[#9CA3AF]">{s.team}</div>
+                  <div className="text-sm font-semibold text-[#111827]">{player.name}</div>
+                  <div className="text-xs text-[#9CA3AF]">{player.team.name}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-bold text-[#111827]">{s.goals} gol</div>
-                  <div className="text-xs text-[#9CA3AF]">{s.assists} asist</div>
+                  <div className="text-sm font-bold text-[#111827]">{goals} gol</div>
                 </div>
               </div>
             ))}
@@ -74,14 +59,15 @@ export default function TournamentStatsPage({ params }: { params: { id: string }
         <Card>
           <CardHeader title="Asist Sıralaması" />
           <div className="divide-y divide-[#F3F4F6]">
-            {topAssists.map((s) => (
-              <div key={s.name} className="flex items-center gap-3 px-4 py-3">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${s.rank === 1 ? "bg-[#FEF3C7] text-[#D97706]" : "bg-[#F3F4F6] text-[#9CA3AF]"}`}>{s.rank}</div>
+            {topAssists.length === 0 && <div className="py-6 text-center text-sm text-[#9CA3AF]">Henüz asist yok</div>}
+            {topAssists.map(({ rank, player, assists }) => (
+              <div key={player.id} className="flex items-center gap-3 px-4 py-3">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${rank === 1 ? "bg-[#FEF3C7] text-[#D97706]" : "bg-[#F3F4F6] text-[#9CA3AF]"}`}>{rank}</div>
                 <div className="flex-1">
-                  <div className="text-sm font-semibold text-[#111827]">{s.name}</div>
-                  <div className="text-xs text-[#9CA3AF]">{s.team}</div>
+                  <div className="text-sm font-semibold text-[#111827]">{player.name}</div>
+                  <div className="text-xs text-[#9CA3AF]">{player.team.name}</div>
                 </div>
-                <span className="text-sm font-bold text-[#111827]">{s.assists}</span>
+                <span className="text-sm font-bold text-[#111827]">{assists}</span>
               </div>
             ))}
           </div>
@@ -91,6 +77,7 @@ export default function TournamentStatsPage({ params }: { params: { id: string }
         <Card>
           <CardHeader title="Kart İstatistikleri" subtitle="Takım bazında" />
           <div className="divide-y divide-[#F3F4F6]">
+            {cardStats.length === 0 && <div className="py-6 text-center text-sm text-[#9CA3AF]">Henüz kart yok</div>}
             {cardStats.map((s) => (
               <div key={s.name} className="flex items-center gap-3 px-4 py-3">
                 <div className="flex-1 text-sm font-medium text-[#111827]">{s.name}</div>
@@ -123,6 +110,9 @@ export default function TournamentStatsPage({ params }: { params: { id: string }
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F3F4F6]">
+              {teamStats.length === 0 && (
+                <tr><td colSpan={8} className="py-6 text-center text-sm text-[#9CA3AF]">Henüz oynanan maç yok</td></tr>
+              )}
               {teamStats.map((t) => (
                 <tr key={t.name} className="hover:bg-[#FAFAFA]">
                   <td className="px-4 py-3 text-sm font-semibold text-[#111827]">{t.name}</td>

@@ -1,15 +1,78 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Trophy, Users, CheckCircle, ArrowRight, ArrowLeft } from "lucide-react";
+import { Trophy, Users, CheckCircle, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 
 type Role = "organizer" | "captain" | null;
+
+const CITIES = [
+  "Adana","Adıyaman","Afyonkarahisar","Ağrı","Amasya","Ankara","Antalya","Artvin",
+  "Aydın","Balıkesir","Bilecik","Bingöl","Bitlis","Bolu","Burdur","Bursa","Çanakkale",
+  "Çankırı","Çorum","Denizli","Diyarbakır","Edirne","Elazığ","Erzincan","Erzurum",
+  "Eskişehir","Gaziantep","Giresun","Gümüşhane","Hakkari","Hatay","Isparta","Mersin",
+  "İstanbul","İzmir","Kars","Kastamonu","Kayseri","Kırklareli","Kırşehir","Kocaeli",
+  "Konya","Kütahya","Malatya","Manisa","Kahramanmaraş","Mardin","Muğla","Muş",
+  "Nevşehir","Niğde","Ordu","Rize","Sakarya","Samsun","Siirt","Sinop","Sivas",
+  "Tekirdağ","Tokat","Trabzon","Tunceli","Şanlıurfa","Uşak","Van","Yozgat","Zonguldak",
+  "Aksaray","Bayburt","Karaman","Kırıkkale","Batman","Şırnak","Bartın","Ardahan",
+  "Iğdır","Yalova","Karabük","Kilis","Osmaniye","Düzce",
+];
+
+const inputCls = "w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]";
 
 export default function RegisterPage() {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState<Role>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+
+  const firstNameRef = useRef<HTMLInputElement>(null);
+  const lastNameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const cityRef = useRef<HTMLSelectElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const termsRef = useRef<HTMLInputElement>(null);
+
+  async function handleSubmit() {
+    setError("");
+    if (!termsRef.current?.checked) {
+      setError("Kullanım koşullarını kabul etmelisiniz.");
+      return;
+    }
+    const firstName = firstNameRef.current?.value.trim() ?? "";
+    const lastName = lastNameRef.current?.value.trim() ?? "";
+    const email = emailRef.current?.value.trim() ?? "";
+    const password = passwordRef.current?.value ?? "";
+    const phone = phoneRef.current?.value.trim() ?? "";
+    const city = cityRef.current?.value ?? "";
+
+    if (!firstName || !lastName || !email || !password) {
+      setError("Lütfen tüm zorunlu alanları doldurun.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstName, lastName, email, password, phone, city, role }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Kayıt sırasında bir hata oluştu.");
+        return;
+      }
+      setDone(true);
+    } catch {
+      setError("Bağlantı hatası. Lütfen tekrar deneyin.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   if (done) {
     return (
@@ -18,19 +81,20 @@ export default function RegisterPage() {
           <div className="w-16 h-16 bg-[#ECFDF5] rounded-full flex items-center justify-center mx-auto mb-5">
             <CheckCircle size={32} className="text-[#10B981]" />
           </div>
-          <h2 className="text-xl font-bold text-[#111827] mb-2">Kaydınız Alındı!</h2>
+          <h2 className="text-xl font-bold text-[#111827] mb-2">Hesabınız Oluşturuldu!</h2>
           <p className="text-sm text-[#6B7280] mb-2">
-            E-posta adresinize doğrulama bağlantısı gönderdik.
+            Hoş geldiniz! Kayıt bilgileriniz e-posta adresinize gönderildi.
           </p>
           <p className="text-xs text-[#9CA3AF] mb-6">
-            Bağlantı 24 saat geçerlidir. Hesabınız doğrulandıktan sonra{" "}
-            {role === "organizer" ? "platform ekibimiz tarafından onaylanacaktır" : "sisteme giriş yapabilirsiniz"}.
+            {role === "organizer"
+              ? "Organizatör hesabınızla giriş yaparak turnuva oluşturabilirsiniz."
+              : "Hesabınızla giriş yaparak takım kurabilir ve turnuvalara katılabilirsiniz."}
           </p>
           <Link
             href="/login"
             className="inline-block bg-[#0F1F47] text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-[#1A2F5A] transition-colors text-sm"
           >
-            Giriş Sayfasına Dön
+            Giriş Yap
           </Link>
         </div>
       </div>
@@ -40,7 +104,6 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-[#F4F6F9] flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-lg">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Image src="/logo-icon.svg" alt="AsistGol" width={36} height={40} />
@@ -50,13 +113,9 @@ export default function RegisterPage() {
           <p className="text-sm text-[#6B7280] mt-1">Adım {step} / 2</p>
         </div>
 
-        {/* Progress */}
         <div className="flex gap-2 mb-8">
           {[1, 2].map((s) => (
-            <div
-              key={s}
-              className={`flex-1 h-1.5 rounded-full transition-all ${s <= step ? "bg-[#F59E0B]" : "bg-[#E5E7EB]"}`}
-            />
+            <div key={s} className={`flex-1 h-1.5 rounded-full transition-all ${s <= step ? "bg-[#F59E0B]" : "bg-[#E5E7EB]"}`} />
           ))}
         </div>
 
@@ -84,9 +143,7 @@ export default function RegisterPage() {
                   key={value}
                   onClick={() => setRole(value)}
                   className={`w-full flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all ${
-                    role === value
-                      ? "border-[#F59E0B] bg-[#FFFBEB]"
-                      : "border-[#E5E7EB] hover:border-[#D1D5DB]"
+                    role === value ? "border-[#F59E0B] bg-[#FFFBEB]" : "border-[#E5E7EB] hover:border-[#D1D5DB]"
                   }`}
                 >
                   <div className={`w-10 h-10 rounded-lg ${color} flex items-center justify-center shrink-0`}>
@@ -98,7 +155,6 @@ export default function RegisterPage() {
                   </div>
                 </button>
               ))}
-
               <button
                 onClick={() => role && setStep(2)}
                 disabled={!role}
@@ -111,78 +167,49 @@ export default function RegisterPage() {
 
           {step === 2 && (
             <div className="space-y-4">
-              <button onClick={() => setStep(1)} className="flex items-center gap-1 text-sm text-[#6B7280] hover:text-[#374151] mb-2">
+              <button onClick={() => { setStep(1); setError(""); }} className="flex items-center gap-1 text-sm text-[#6B7280] hover:text-[#374151] mb-2">
                 <ArrowLeft size={14} /> Geri
               </button>
               <h3 className="text-base font-semibold text-[#111827] mb-4">
                 {role === "organizer" ? "Organizasyon Bilgileri" : "Kişisel Bilgiler"}
               </h3>
 
-              {role === "organizer" ? (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1">Ad</label>
-                      <input className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]" placeholder="Adınız" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1">Soyad</label>
-                      <input className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]" placeholder="Soyadınız" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-[#374151] mb-1">Organizasyon / Kulüp Adı</label>
-                    <input className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]" placeholder="örn. Yıldız Spor Kulübü" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-[#374151] mb-1">Şehir</label>
-                    <select className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]">
-                      <option value="">Şehir seçin</option>
-                      {["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Konya", "Gaziantep"].map(c => <option key={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-[#374151] mb-1">Telefon</label>
-                    <input className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]" placeholder="05XX XXX XX XX" />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1">Ad</label>
-                      <input className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]" placeholder="Adınız" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-[#374151] mb-1">Soyad</label>
-                      <input className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]" placeholder="Soyadınız" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-[#374151] mb-1">Telefon</label>
-                    <input className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]" placeholder="05XX XXX XX XX" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-[#374151] mb-1">Şehir</label>
-                    <select className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]">
-                      <option value="">Şehir seçin</option>
-                      {["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Konya", "Gaziantep"].map(c => <option key={c}>{c}</option>)}
-                    </select>
-                  </div>
-                </>
-              )}
-
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-[#374151] mb-1">Ad</label>
+                  <input ref={firstNameRef} className={inputCls} placeholder="Adınız" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#374151] mb-1">Soyad</label>
+                  <input ref={lastNameRef} className={inputCls} placeholder="Soyadınız" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#374151] mb-1">Telefon</label>
+                <input ref={phoneRef} className={inputCls} placeholder="05XX XXX XX XX" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#374151] mb-1">Şehir</label>
+                <select ref={cityRef} className={inputCls + " bg-white"}>
+                  <option value="">Şehir seçin</option>
+                  {CITIES.map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-[#374151] mb-1">E-posta</label>
-                <input type="email" className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]" placeholder="ornek@email.com" />
+                <input ref={emailRef} type="email" className={inputCls} placeholder="ornek@email.com" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-[#374151] mb-1">Şifre</label>
-                <input type="password" className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]" placeholder="En az 8 karakter" />
+                <input ref={passwordRef} type="password" className={inputCls} placeholder="En az 6 karakter" />
               </div>
 
+              {error && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+              )}
+
               <div className="flex items-start gap-2 pt-1">
-                <input type="checkbox" id="terms" className="w-4 h-4 mt-0.5 rounded border-[#E5E7EB] accent-[#F59E0B]" />
+                <input ref={termsRef} type="checkbox" id="terms" className="w-4 h-4 mt-0.5 rounded border-[#E5E7EB] accent-[#F59E0B]" />
                 <label htmlFor="terms" className="text-xs text-[#6B7280]">
                   <span className="text-[#F59E0B] font-medium cursor-pointer">Kullanım Koşulları</span>nı ve{" "}
                   <span className="text-[#F59E0B] font-medium cursor-pointer">Gizlilik Politikası</span>nı okudum, kabul ediyorum.
@@ -190,10 +217,11 @@ export default function RegisterPage() {
               </div>
 
               <button
-                onClick={() => setDone(true)}
-                className="w-full flex items-center justify-center gap-2 bg-[#0F1F47] text-white font-semibold py-2.5 rounded-lg hover:bg-[#1A2F5A] transition-colors text-sm mt-2"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 bg-[#0F1F47] text-white font-semibold py-2.5 rounded-lg hover:bg-[#1A2F5A] transition-colors text-sm mt-2 disabled:opacity-60"
               >
-                Hesap Oluştur <ArrowRight size={16} />
+                {loading ? <><Loader2 size={16} className="animate-spin" /> Kaydediliyor...</> : <>Hesap Oluştur <ArrowRight size={16} /></>}
               </button>
             </div>
           )}

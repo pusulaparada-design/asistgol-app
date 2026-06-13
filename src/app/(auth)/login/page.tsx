@@ -3,11 +3,9 @@ import { useState } from "react";
 import Image from "next/image";
 import { Trophy, Shield, BarChart2, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,39 +18,19 @@ export default function LoginPage() {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Giriş başarısız.");
         return;
       }
-      router.push(data.redirect);
-      router.refresh();
+      window.location.href = data.redirect;
     } catch {
       setError("Sunucu bağlantısı kurulamadı.");
     } finally {
       setLoading(false);
     }
-  }
-
-  function quickLogin(username: string, redirect: string) {
-    setUsername(username);
-    setPassword("123");
-    // direkt fetch ile giriş yap
-    setLoading(true);
-    fetch("/api/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password: "123" }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.ok) { router.push(data.redirect); router.refresh(); }
-        else setError(data.error || "Giriş başarısız.");
-      })
-      .catch(() => setError("Sunucu bağlantısı kurulamadı."))
-      .finally(() => setLoading(false));
   }
 
   return (
@@ -103,21 +81,6 @@ export default function LoginPage() {
               </div>
             ))}
           </div>
-
-          {/* Demo bilgileri */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
-            <div className="text-[#94A3B8] text-xs font-semibold uppercase tracking-wider mb-3">Demo Hesapları</div>
-            {[
-              { user: "admin",       label: "Platform Admin" },
-              { user: "organizator", label: "Turnuva Organizatörü" },
-              { user: "takim",       label: "Takım Kaptanı" },
-            ].map((r) => (
-              <div key={r.user} className="flex items-center justify-between">
-                <span className="text-white text-sm font-mono">{r.user}</span>
-                <span className="text-[#64748B] text-xs">/ 123 → {r.label}</span>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div className="relative z-10 text-[#475569] text-xs">© 2026 AsistGol. Tüm hakları saklıdır.</div>
@@ -136,14 +99,14 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#374151] mb-1.5">Kullanıcı Adı</label>
+              <label className="block text-sm font-medium text-[#374151] mb-1.5">E-posta Adresi</label>
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin, organizator veya takim"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="ornek@email.com"
                 className="w-full px-4 py-2.5 text-sm border border-[#E5E7EB] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B] transition-all"
-                autoComplete="username"
+                autoComplete="email"
               />
             </div>
             <div>
@@ -178,36 +141,6 @@ export default function LoginPage() {
               {loading ? <><Loader2 size={15} className="animate-spin" /> Giriş yapılıyor...</> : "Giriş Yap"}
             </button>
           </form>
-
-          {/* Demo butonları */}
-          <div className="mt-6 p-4 bg-white border border-[#E5E7EB] rounded-xl">
-            <div className="text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-3">
-              Demo Hesapları (şifre: 123)
-            </div>
-            <div className="space-y-2">
-              {[
-                { user: "admin",       label: "Platform Admin",       color: "bg-[#EF4444]", redirect: "/admin" },
-                { user: "organizator", label: "Turnuva Organizatörü", color: "bg-[#3B82F6]", redirect: "/organizer" },
-                { user: "takim",       label: "Takım Kaptanı",        color: "bg-[#10B981]", redirect: "/captain" },
-              ].map((r) => (
-                <button
-                  key={r.user}
-                  onClick={() => quickLogin(r.user, r.redirect)}
-                  disabled={loading}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F4F6F9] transition-colors text-left disabled:opacity-60"
-                >
-                  <div className={`w-7 h-7 ${r.color} rounded-md flex items-center justify-center text-white text-xs font-bold shrink-0`}>
-                    {r.user[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-xs font-semibold text-[#111827]">{r.user}</div>
-                    <div className="text-[10px] text-[#9CA3AF]">{r.label}</div>
-                  </div>
-                  <span className="text-[10px] text-[#D1D5DB] font-mono">şifre: 123</span>
-                </button>
-              ))}
-            </div>
-          </div>
 
           <p className="mt-6 text-center text-sm text-[#6B7280]">
             Hesabınız yok mu?{" "}

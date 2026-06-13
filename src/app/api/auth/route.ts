@@ -3,12 +3,12 @@ import { login, createToken, roleRedirect, COOKIE_NAME } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
-    const { username, password } = await req.json();
-    if (!username || !password) {
-      return NextResponse.json({ error: "Kullanıcı adı ve şifre gereklidir." }, { status: 400 });
+    const { email, password } = await req.json();
+    if (!email || !password) {
+      return NextResponse.json({ error: "E-posta ve şifre gereklidir." }, { status: 400 });
     }
 
-    const result = await login(username.trim().toLowerCase(), password);
+    const result = await login(email.trim().toLowerCase(), password);
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 401 });
     }

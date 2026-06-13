@@ -1,10 +1,12 @@
 "use client";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { LucideIcon, LayoutDashboard, Trophy, Users, Calendar, BarChart2, Bell, Settings, ShieldCheck, Swords, UserCircle, Search, ClipboardList, Megaphone, Star } from "lucide-react";
+import { LucideIcon, LayoutDashboard, Trophy, Users, Calendar, BarChart2, Bell, Settings, ShieldCheck, Swords, UserCircle, Megaphone, Star, LogOut } from "lucide-react";
 import { Logo } from "./Logo";
+import { NotificationBadge } from "./NotificationBadge";
+import type { Role } from "@prisma/client";
 
-type NavItem = { label: string; href: string; icon: LucideIcon; badge?: number };
+type NavItem = { label: string; href: string; icon: LucideIcon; isNotif?: boolean };
 type NavGroup = { group?: string; items: NavItem[] };
 
 const adminNav: NavGroup[] = [
@@ -31,7 +33,7 @@ const adminNav: NavGroup[] = [
   {
     group: "SİSTEM",
     items: [
-      { label: "Bildirimler", href: "/admin/notifications", icon: Bell, badge: 3 },
+      { label: "Bildirimler", href: "/admin/notifications", icon: Bell, isNotif: true },
       { label: "Ayarlar", href: "/admin/settings", icon: Settings },
     ],
   },
@@ -54,7 +56,7 @@ const organizerNav: NavGroup[] = [
     group: "İLETİŞİM",
     items: [
       { label: "Duyurular", href: "/organizer/announcements", icon: Megaphone },
-      { label: "Bildirimler", href: "/organizer/notifications", icon: Bell, badge: 5 },
+      { label: "Bildirimler", href: "/organizer/notifications", icon: Bell, isNotif: true },
     ],
   },
   {
@@ -74,8 +76,7 @@ const captainNav: NavGroup[] = [
   {
     group: "TURNUVALAR",
     items: [
-      { label: "Turnuva Keşfet", href: "/captain/tournaments", icon: Search },
-      { label: "Kayıtlarım", href: "/captain/registrations", icon: ClipboardList },
+      { label: "Turnuvalar", href: "/captain/tournaments", icon: Trophy },
     ],
   },
   {
@@ -94,7 +95,7 @@ const captainNav: NavGroup[] = [
   {
     group: "HESAP",
     items: [
-      { label: "Bildirimler", href: "/captain/notifications", icon: Bell, badge: 2 },
+      { label: "Bildirimler", href: "/captain/notifications", icon: Bell, isNotif: true },
       { label: "Profil", href: "/captain/profile", icon: UserCircle },
     ],
   },
@@ -106,14 +107,30 @@ function getNav(pathname: string): NavGroup[] {
   return captainNav;
 }
 
-function isActive(pathname: string, href: string): boolean {
+function isActive(pathname: string, href: string, allHrefs: string[]): boolean {
   if (href === "/admin" || href === "/organizer" || href === "/captain") return pathname === href;
-  return pathname.startsWith(href);
+  if (!pathname.startsWith(href)) return false;
+  if (pathname === href) return true;
+  // Daha spesifik bir nav item de eşleşiyorsa bu item'ı aktif sayma
+  return !allHrefs.some(h => h !== href && h.startsWith(href) && pathname.startsWith(h));
 }
 
-export function Sidebar() {
+const ROLE_LABEL: Record<Role, string> = {
+  ADMIN: "Yönetici",
+  ORGANIZER: "Organizatör",
+  CAPTAIN: "Kaptan",
+};
+
+export function Sidebar({ user }: { user: { name: string; role: Role } | null }) {
   const pathname = usePathname();
+  const router = useRouter();
   const nav = getNav(pathname);
+  const allHrefs = nav.flatMap(g => g.items.map(i => i.href));
+
+  async function handleLogout() {
+    await fetch("/api/auth", { method: "DELETE" });
+    router.push("/login");
+  }
 
   return (
     <aside className="w-60 shrink-0 bg-[#0F1F47] flex flex-col h-screen sticky top-0">
@@ -133,7 +150,7 @@ export function Sidebar() {
             )}
             <ul className="space-y-0.5">
               {group.items.map((item) => {
-                const active = isActive(pathname, item.href);
+                const active = isActive(pathname, item.href, allHrefs);
                 return (
                   <li key={item.href}>
                     <Link
@@ -146,11 +163,7 @@ export function Sidebar() {
                     >
                       <item.icon size={17} className={active ? "text-white" : "text-[#64748B] group-hover:text-white"} />
                       <span className="flex-1">{item.label}</span>
-                      {item.badge !== undefined && (
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${active ? "bg-white/20 text-white" : "bg-[#EF4444] text-white"}`}>
-                          {item.badge}
-                        </span>
-                      )}
+                      {item.isNotif && <NotificationBadge active={active} />}
                     </Link>
                   </li>
                 );
@@ -160,27 +173,25 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Role switcher (demo) */}
+      {/* Kullanıcı & çıkış */}
       <div className="p-3 border-t border-white/10">
-        <div className="text-[9px] text-[#64748B] uppercase tracking-widest mb-2 px-2">Demo — Rol Değiştir</div>
-        <div className="flex gap-1">
-          {[
-            { label: "Admin", href: "/admin" },
-            { label: "Org.", href: "/organizer" },
-            { label: "Kaptan", href: "/captain" },
-          ].map((r) => (
-            <Link
-              key={r.href}
-              href={r.href}
-              className={`flex-1 text-center text-[10px] font-semibold py-1.5 rounded-md transition-all ${
-                pathname.startsWith(r.href)
-                  ? "bg-[#F59E0B] text-white"
-                  : "text-[#94A3B8] hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {r.label}
-            </Link>
-          ))}
+        <div className="flex items-center gap-3 px-2 py-2">
+          <div className="w-8 h-8 rounded-full bg-[#F59E0B]/20 flex items-center justify-center shrink-0">
+            <span className="text-[#F59E0B] text-xs font-bold">
+              {user?.name?.charAt(0)?.toUpperCase() ?? "?"}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-white text-xs font-semibold truncate">{user?.name ?? "—"}</div>
+            <div className="text-[#64748B] text-[10px]">{user ? ROLE_LABEL[user.role] : ""}</div>
+          </div>
+          <button
+            onClick={handleLogout}
+            title="Çıkış Yap"
+            className="text-[#64748B] hover:text-[#EF4444] transition-colors p-1 rounded"
+          >
+            <LogOut size={15} />
+          </button>
         </div>
       </div>
     </aside>

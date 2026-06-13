@@ -1,63 +1,38 @@
 import { Plus, Trophy, Users, Swords } from "lucide-react";
 import { PageContent, PageHeader, Card, ActionButton, StatusBadge, ProgressBar } from "@/components/ui/PageShell";
 import Link from "next/link";
+import { getTournaments } from "@/lib/actions/tournament";
+import { getSession } from "@/lib/auth";
 
-const tournaments = [
-  {
-    id: 1,
-    name: "Ramazan Kupası 2026",
-    format: "Grup + Eleme",
-    teams: 12, maxTeams: 16,
-    matches: { played: 18, total: 48 },
-    phase: "Grup Aşaması (Tur 2)",
-    status: "active",
-    startDate: "20 May", endDate: "30 Haz",
-    prize: "₺5.000",
-  },
-  {
-    id: 2,
-    name: "Yaz Ligi 2026",
-    format: "Sadece Lig",
-    teams: 8, maxTeams: 8,
-    matches: { played: 28, total: 56 },
-    phase: "5. Hafta",
-    status: "active",
-    startDate: "1 Haz", endDate: "15 Tem",
-    prize: "Kupa",
-  },
-  {
-    id: 3,
-    name: "Akşam Kupası",
-    format: "Sadece Eleme",
-    teams: 4, maxTeams: 8,
-    matches: { played: 0, total: 7 },
-    phase: "Kayıt Açık",
-    status: "registration",
-    startDate: "20 Haz", endDate: "5 Tem",
-    prize: "₺2.000",
-  },
-  {
-    id: 4,
-    name: "Bahar Kupası 2026",
-    format: "Grup + Eleme",
-    teams: 8, maxTeams: 8,
-    matches: { played: 24, total: 24 },
-    phase: "Tamamlandı",
-    status: "completed",
-    startDate: "1 Nis", endDate: "15 May",
-    prize: "₺3.000",
-    champion: "Rüzgar Spor",
-  },
-];
-
-const statusMap = {
-  active: { label: "Aktif", variant: "green" as const },
-  registration: { label: "Kayıt Açık", variant: "blue" as const },
-  completed: { label: "Tamamlandı", variant: "gray" as const },
-  draft: { label: "Taslak", variant: "orange" as const },
+const FORMAT_LABELS: Record<string, string> = {
+  GROUP_KNOCKOUT: "Grup + Eleme",
+  GROUP_ONLY: "Sadece Lig",
+  KNOCKOUT_ONLY: "Sadece Eleme",
 };
 
-export default function OrganizerTournamentsPage() {
+const STATUS_MAP: Record<string, { label: string; variant: "green" | "blue" | "gray" | "orange" }> = {
+  ACTIVE:       { label: "Aktif",        variant: "green"  },
+  REGISTRATION: { label: "Kayıt Açık",   variant: "blue"   },
+  COMPLETED:    { label: "Tamamlandı",   variant: "gray"   },
+  DRAFT:        { label: "Taslak",       variant: "orange" },
+};
+
+const PHASE_MAP: Record<string, string> = {
+  DRAFT:        "Taslak",
+  REGISTRATION: "Kayıt Açık",
+  ACTIVE:       "Devam Ediyor",
+  COMPLETED:    "Tamamlandı",
+};
+
+function formatDate(d: Date | null | undefined): string {
+  if (!d) return "—";
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+}
+
+export default async function OrganizerTournamentsPage() {
+  const session = await getSession();
+  const tournaments = await getTournaments(session?.userId);
+
   return (
     <PageContent>
       <PageHeader
@@ -70,73 +45,67 @@ export default function OrganizerTournamentsPage() {
         }
       />
 
+      {tournaments.length === 0 && (
+        <Card>
+          <div className="p-10 text-center text-[#9CA3AF]">
+            <Trophy size={32} className="mx-auto mb-3 opacity-40" />
+            <p className="text-sm">Henüz turnuva oluşturmadınız.</p>
+          </div>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {tournaments.map((t) => {
-          const s = statusMap[t.status as keyof typeof statusMap];
+          const s = STATUS_MAP[t.status] ?? STATUS_MAP.DRAFT;
+          const registeredTeams = t._count.registrations;
+          const totalMatches = t._count.matches;
+
           return (
-            <Card key={t.id} className="hover:shadow-md transition-shadow">
-              <div className="p-5">
+            <Card key={t.id} className="hover:shadow-md transition-shadow cursor-pointer">
+              <Link href={`/organizer/tournaments/${t.id}`} className="block p-5">
                 <div className="flex items-start justify-between gap-3 mb-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h3 className="text-base font-bold text-[#111827]">{t.name}</h3>
                       <StatusBadge label={s.label} variant={s.variant} dot={false} />
                     </div>
-                    <div className="text-xs text-[#9CA3AF]">{t.format} · {t.startDate} – {t.endDate}</div>
+                    <div className="text-xs text-[#9CA3AF]">
+                      {FORMAT_LABELS[t.format] ?? t.format} · {formatDate(t.startDate)} – {formatDate(t.endDate)}
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-xs text-[#9CA3AF]">Ödül</div>
-                    <div className="text-sm font-bold text-[#F59E0B]">{t.prize}</div>
-                  </div>
+                  {t.prize && (
+                    <div className="shrink-0 text-right">
+                      <div className="text-xs text-[#9CA3AF]">Ödül</div>
+                      <div className="text-sm font-bold text-[#F59E0B]">{t.prize}</div>
+                    </div>
+                  )}
                 </div>
-
-                {t.status === "completed" && t.champion && (
-                  <div className="flex items-center gap-2 mb-4 p-2.5 bg-[#FEF3C7] rounded-lg">
-                    <Trophy size={14} className="text-[#D97706]" />
-                    <span className="text-xs font-semibold text-[#D97706]">Şampiyon: {t.champion}</span>
-                  </div>
-                )}
 
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="text-center p-2 bg-[#F4F6F9] rounded-lg">
                     <div className="flex items-center justify-center gap-1 text-[#9CA3AF] mb-1"><Users size={12} /></div>
-                    <div className="text-sm font-bold text-[#111827]">{t.teams}/{t.maxTeams}</div>
+                    <div className="text-sm font-bold text-[#111827]">{registeredTeams}/{t.maxTeams}</div>
                     <div className="text-[10px] text-[#9CA3AF]">Takım</div>
                   </div>
                   <div className="text-center p-2 bg-[#F4F6F9] rounded-lg">
                     <div className="flex items-center justify-center gap-1 text-[#9CA3AF] mb-1"><Swords size={12} /></div>
-                    <div className="text-sm font-bold text-[#111827]">{t.matches.played}/{t.matches.total}</div>
+                    <div className="text-sm font-bold text-[#111827]">{totalMatches}</div>
                     <div className="text-[10px] text-[#9CA3AF]">Maç</div>
                   </div>
                   <div className="text-center p-2 bg-[#F4F6F9] rounded-lg">
-                    <div className="text-sm font-bold text-[#111827]">{t.phase}</div>
+                    <div className="text-sm font-bold text-[#111827]">{PHASE_MAP[t.status]}</div>
                     <div className="text-[10px] text-[#9CA3AF] mt-1">Aşama</div>
                   </div>
                 </div>
 
-                <div className="mb-4">
+                <div>
                   <div className="flex justify-between text-xs text-[#9CA3AF] mb-1">
-                    <span>İlerleme</span>
-                    <span>{t.matches.played}/{t.matches.total} maç</span>
+                    <span>Kayıt Doluluk</span>
+                    <span>{registeredTeams}/{t.maxTeams} takım</span>
                   </div>
-                  <ProgressBar value={t.matches.played} max={t.matches.total} color={t.status === "completed" ? "green" : "blue"} />
+                  <ProgressBar value={registeredTeams} max={t.maxTeams} color={t.status === "COMPLETED" ? "green" : "blue"} />
                 </div>
-
-                <div className="flex gap-2">
-                  <Link
-                    href={`/organizer/tournaments/${t.id}`}
-                    className="flex-1 text-center text-sm font-medium py-2 rounded-lg bg-[#0F1F47] text-white hover:bg-[#1A2F5A] transition-colors"
-                  >
-                    Yönet
-                  </Link>
-                  <Link
-                    href={`/organizer/tournaments/${t.id}/fixture`}
-                    className="px-4 py-2 text-sm font-medium rounded-lg bg-[#F4F6F9] text-[#374151] hover:bg-[#E5E7EB] transition-colors"
-                  >
-                    Fikstür
-                  </Link>
-                </div>
-              </div>
+              </Link>
             </Card>
           );
         })}

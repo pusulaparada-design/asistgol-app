@@ -1,37 +1,83 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Trash2, ArrowRight, ArrowLeft, CheckCircle } from "lucide-react";
 import { PageContent, PageHeader, Card } from "@/components/ui/PageShell";
+import { createTeam } from "@/lib/actions/team";
 
-const positions = ["Kaleci", "Defans", "Orta Saha", "Forvet"];
+
+const COLORS = [
+  { hex: "#EF4444", label: "Kırmızı"  },
+  { hex: "#F97316", label: "Turuncu"  },
+  { hex: "#F59E0B", label: "Sarı"     },
+  { hex: "#84CC16", label: "Limon"    },
+  { hex: "#10B981", label: "Yeşil"    },
+  { hex: "#14B8A6", label: "Turkuaz"  },
+  { hex: "#3B82F6", label: "Mavi"     },
+  { hex: "#1E3A5F", label: "Lacivert" },
+  { hex: "#0F1F47", label: "Koyu Lacivert" },
+  { hex: "#8B5CF6", label: "Mor"      },
+  { hex: "#EC4899", label: "Pembe"    },
+  { hex: "#111827", label: "Siyah"    },
+  { hex: "#6B7280", label: "Gri"      },
+  { hex: "#F9FAFB", label: "Beyaz"    },
+];
 
 export default function CreateTeamPage() {
+  const router = useRouter();
   const [step, setStep] = useState(0);
-  const [players, setPlayers] = useState([
-    { name: "", position: "Orta Saha", number: "" },
-  ]);
-  const [done, setDone] = useState(false);
 
-  const addPlayer = () => setPlayers([...players, { name: "", position: "Orta Saha", number: "" }]);
+  // Step 1 state
+  const [name, setName] = useState("");
+  const [colors, setColors] = useState<string[]>([]);
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState("");
+
+  // Step 2 state
+  const [players, setPlayers] = useState([{ name: "", number: "" }]);
+
+  // Submit state
+  const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  const toggleColor = (hex: string) => {
+    setColors(prev => {
+      if (prev.includes(hex)) return prev.filter(c => c !== hex);
+      if (prev.length >= 3) return prev; // max 3
+      return [...prev, hex];
+    });
+  };
+
+  const addPlayer = () => setPlayers([...players, { name: "", number: "" }]);
   const removePlayer = (i: number) => setPlayers(players.filter((_, idx) => idx !== i));
 
-  if (done) {
-    return (
-      <PageContent>
-        <div className="max-w-md mx-auto text-center py-12">
-          <div className="w-16 h-16 bg-[#ECFDF5] rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle size={32} className="text-[#10B981]" />
-          </div>
-          <h2 className="text-xl font-bold text-[#111827] mb-2">Takımınız Oluşturuldu!</h2>
-          <p className="text-sm text-[#6B7280] mb-6">Artık turnuvalara kayıt yapabilirsiniz.</p>
-          <div className="flex gap-3 justify-center">
-            <a href="/captain/my-teams" className="px-4 py-2 text-sm font-semibold bg-[#0F1F47] text-white rounded-lg hover:bg-[#1A2F5A]">Takımlarıma Dön</a>
-            <a href="/captain/tournaments" className="px-4 py-2 text-sm font-medium border border-[#E5E7EB] text-[#374151] rounded-lg hover:bg-[#F4F6F9]">Turnuva Ara</a>
-          </div>
-        </div>
-      </PageContent>
-    );
-  }
+  const goToStep1 = () => {
+    if (!name.trim()) { setError("Takım adı zorunludur."); return; }
+    setError("");
+    setStep(1);
+  };
+
+  const handleSubmit = async () => {
+    const validPlayers = players.filter(p => p.name.trim());
+    if (validPlayers.length === 0) { setSubmitError("En az 1 oyuncu ekleyin."); return; }
+    setLoading(true);
+    setSubmitError("");
+    try {
+      await createTeam({
+        name: name.trim(),
+        color: colors.join(",") || undefined,
+        description: description || undefined,
+        players: validPlayers.map(p => ({
+          name: p.name.trim(),
+          number: p.number ? Number(p.number) : undefined,
+        })),
+      });
+      router.push("/captain/my-teams");
+    } catch (e: unknown) {
+      setSubmitError(e instanceof Error ? e.message : "Bir hata oluştu.");
+      setLoading(false);
+    }
+  };
 
   return (
     <PageContent>
@@ -53,30 +99,83 @@ export default function CreateTeamPage() {
         <Card>
           <div className="p-6 space-y-4">
             <h3 className="text-sm font-semibold text-[#111827]">Takım Bilgileri</h3>
+
             <div>
               <label className="block text-xs font-medium text-[#374151] mb-1.5">Takım Adı *</label>
-              <input className="w-full px-3 py-2.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]" placeholder="örn. Yıldız FC" />
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]"
+                placeholder="örn. Yıldız FC"
+              />
             </div>
+
             <div>
-              <label className="block text-xs font-medium text-[#374151] mb-1.5">Şehir</label>
-              <select className="w-full px-3 py-2.5 text-sm border border-[#E5E7EB] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]">
-                {["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya"].map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[#374151] mb-1.5">Takım Rengi (forma)</label>
-              <div className="flex gap-2">
-                {["#EF4444", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#0F1F47"].map(c => (
-                  <button key={c} className="w-8 h-8 rounded-full border-2 border-white shadow-sm hover:scale-110 transition-transform" style={{ backgroundColor: c }} />
-                ))}
+              <label className="block text-xs font-medium text-[#374151] mb-2">
+                Forma Rengi
+                <span className="ml-2 text-[#9CA3AF] font-normal">en fazla 3 renk seçin</span>
+              </label>
+
+              {/* Seçili renk önizlemesi */}
+              {colors.length > 0 && (
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex rounded-lg overflow-hidden h-8 w-20 border border-[#E5E7EB]">
+                    {colors.map(c => (
+                      <div key={c} className="flex-1" style={{ backgroundColor: c }} />
+                    ))}
+                  </div>
+                  <span className="text-xs text-[#9CA3AF]">{colors.length} renk seçildi</span>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {COLORS.map(({ hex, label }) => {
+                  const selected = colors.includes(hex);
+                  const disabled = !selected && colors.length >= 3;
+                  return (
+                    <button
+                      key={hex}
+                      onClick={() => toggleColor(hex)}
+                      disabled={disabled}
+                      title={label}
+                      className={`relative w-9 h-9 rounded-full border-2 transition-all ${
+                        selected
+                          ? "border-[#F59E0B] scale-110 shadow-md"
+                          : disabled
+                          ? "border-white opacity-30 cursor-not-allowed"
+                          : "border-white shadow-sm hover:scale-110 hover:border-[#D1D5DB]"
+                      }`}
+                      style={{ backgroundColor: hex }}
+                    >
+                      {selected && (
+                        <span className="absolute inset-0 flex items-center justify-center">
+                          <CheckCircle
+                            size={16}
+                            className={hex === "#F9FAFB" || hex === "#F59E0B" ? "text-[#111827]" : "text-white"}
+                          />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
+
             <div>
               <label className="block text-xs font-medium text-[#374151] mb-1.5">Takım Hakkında (isteğe bağlı)</label>
-              <textarea rows={2} className="w-full px-3 py-2.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B] resize-none" placeholder="Takımınız hakkında kısa not..." />
+              <textarea
+                rows={2}
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B] resize-none"
+                placeholder="Takımınız hakkında kısa not..."
+              />
             </div>
+
+            {error && <p className="text-sm text-red-500">{error}</p>}
+
             <div className="flex justify-end">
-              <button onClick={() => setStep(1)} className="flex items-center gap-2 bg-[#0F1F47] text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-[#1A2F5A] text-sm">
+              <button onClick={goToStep1} className="flex items-center gap-2 bg-[#0F1F47] text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-[#1A2F5A] text-sm">
                 Devam Et <ArrowRight size={16} />
               </button>
             </div>
@@ -110,13 +209,6 @@ export default function CreateTeamPage() {
                       placeholder="Oyuncu adı soyadı"
                       className="flex-1 px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-1 focus:ring-[#F59E0B]"
                     />
-                    <select
-                      value={p.position}
-                      onChange={e => { const ps = [...players]; ps[i].position = e.target.value; setPlayers(ps); }}
-                      className="px-2 py-2 text-sm border border-[#E5E7EB] rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-[#F59E0B]"
-                    >
-                      {positions.map(pos => <option key={pos}>{pos}</option>)}
-                    </select>
                     {players.length > 1 && (
                       <button onClick={() => removePlayer(i)} className="p-2 text-[#9CA3AF] hover:text-[#EF4444] transition-colors">
                         <Trash2 size={15} />
@@ -132,12 +224,18 @@ export default function CreateTeamPage() {
             </div>
           </Card>
 
+          {submitError && (
+            <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+              {submitError}
+            </div>
+          )}
+
           <div className="flex justify-between">
-            <button onClick={() => setStep(0)} className="flex items-center gap-2 text-sm font-medium text-[#6B7280] hover:text-[#374151] px-4 py-2.5 rounded-lg border border-[#E5E7EB] bg-white hover:bg-[#F4F6F9] transition-colors">
+            <button onClick={() => setStep(0)} disabled={loading} className="flex items-center gap-2 text-sm font-medium text-[#6B7280] hover:text-[#374151] px-4 py-2.5 rounded-lg border border-[#E5E7EB] bg-white hover:bg-[#F4F6F9] transition-colors disabled:opacity-50">
               <ArrowLeft size={16} /> Geri
             </button>
-            <button onClick={() => setDone(true)} className="flex items-center gap-2 bg-[#10B981] text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-[#059669] transition-colors text-sm">
-              <CheckCircle size={16} /> Takımı Oluştur
+            <button onClick={handleSubmit} disabled={loading} className="flex items-center gap-2 bg-[#10B981] text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-[#059669] transition-colors text-sm disabled:opacity-50">
+              <CheckCircle size={16} /> {loading ? "Oluşturuluyor..." : "Takımı Oluştur"}
             </button>
           </div>
         </div>

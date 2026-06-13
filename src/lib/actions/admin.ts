@@ -61,3 +61,52 @@ export async function getLiveCounts() {
   ]);
   return { liveMatches, registrationTournaments };
 }
+
+// ─── Tüm takımlar (admin) ─────────────────────────────────────
+export async function getAllTeams() {
+  return prisma.team.findMany({
+    include: {
+      captain: { select: { name: true, phone: true } },
+      players: {
+        select: { id: true, name: true, number: true, position: true, status: true },
+        orderBy: { number: "asc" },
+      },
+      _count: { select: { registrations: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+// ─── Tüm maçlar (admin) ───────────────────────────────────────
+export async function getAllMatchesAdmin() {
+  return prisma.match.findMany({
+    include: {
+      homeTeam: { select: { name: true } },
+      awayTeam: { select: { name: true } },
+      tournament: { select: { name: true } },
+      group: { select: { name: true } },
+    },
+    orderBy: [{ date: "desc" }],
+    take: 200,
+  });
+}
+
+// ─── Platform geneli golcü sıralaması ─────────────────────────
+export async function getPlatformTopScorers() {
+  const goals = await prisma.goal.groupBy({
+    by: ["playerId"],
+    where: { ownGoal: false },
+    _count: { playerId: true },
+    orderBy: { _count: { playerId: "desc" } },
+    take: 10,
+  });
+  const playerIds = goals.map((g) => g.playerId);
+  const players = await prisma.player.findMany({
+    where: { id: { in: playerIds } },
+    include: { team: { select: { name: true } } },
+  });
+  return goals.map((g) => {
+    const player = players.find((p) => p.id === g.playerId)!;
+    return { player, goals: g._count.playerId };
+  });
+}

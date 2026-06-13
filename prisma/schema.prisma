@@ -24,6 +24,7 @@ model User {
   organizedTournaments Tournament[]   @relation("OrganizerTournaments")
   captainTeams         Team[]         @relation("CaptainTeams")
   announcements        Announcement[]
+  notifications        Notification[]
 }
 
 enum Role {
@@ -138,6 +139,7 @@ enum PlayerStatus {
 model TeamRegistration {
   id              String             @id @default(cuid())
   status          RegistrationStatus @default(PENDING)
+  paid            Boolean            @default(false)
   note            String?
   rejectionReason String?
 
@@ -273,6 +275,27 @@ model Card {
 enum CardType {
   YELLOW
   RED
+}
+
+// ─── Bildirim ────────────────────────────────────────────────────
+enum NotificationType {
+  REGISTRATION_RECEIVED
+  REGISTRATION_APPROVED
+  REGISTRATION_REJECTED
+  MATCH_RESULT
+  ANNOUNCEMENT
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  body      String
+  read      Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
 }
 
 // ─── Duyuru ──────────────────────────────────────────────────────

@@ -45,14 +45,14 @@ export async function getSession(): Promise<SessionPayload | null> {
 
 // ─── Login ─────────────────────────────────────────────────────
 export async function login(
-  username: string,
+  email: string,
   password: string
 ): Promise<{ ok: true; payload: SessionPayload } | { ok: false; error: string }> {
-  const user = await prisma.user.findUnique({ where: { username } });
-  if (!user) return { ok: false, error: "Kullanıcı adı veya şifre hatalı." };
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return { ok: false, error: "E-posta veya şifre hatalı." };
 
   const match = await bcrypt.compare(password, user.password);
-  if (!match) return { ok: false, error: "Kullanıcı adı veya şifre hatalı." };
+  if (!match) return { ok: false, error: "E-posta veya şifre hatalı." };
 
   const payload: SessionPayload = {
     userId: user.id,

@@ -2,6 +2,8 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { createNotification } from "./notification";
+import { sendNewRegistrationEmail } from "@/lib/email";
 
 // ─── Takım oluştur ────────────────────────────────────────────
 export async function createTeam(data: {
@@ -90,12 +92,72 @@ export async function registerTeamToTournament(teamId: string, tournamentId: str
   });
   if (existing) throw new Error("Bu takım zaten kayıtlı.");
 
-  const reg = await prisma.teamRegistration.create({
-    data: { teamId, tournamentId, note },
-  });
+  const [reg, team, tournament] = await Promise.all([
+    prisma.teamRegistration.create({ data: { teamId, tournamentId, note } }),
+    prisma.team.findUnique({
+      where: { id: teamId },
+      select: { name: true, captain: { select: { name: true } } },
+    }),
+    prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { id: true, name: true, organizerId: true, organizer: { select: { name: true, email: true } } },
+    }),
+  ]);
+
+  if (team && tournament) {
+    await createNotification({
+      userId: tournament.organizerId,
+      type: "REGISTRATION_RECEIVED",
+      title: "Yeni turnuva başvurusu",
+      body: `${team.name} takımı ${tournament.name} turnuvasına başvurdu.`,
+      link: `/organizer/tournaments/${tournament.id}/manage`,
+    });
+    if (tournament.organizer.email) {
+      sendNewRegistrationEmail({
+        to: tournament.organizer.email,
+        organizerName: tournament.organizer.name,
+        teamName: team.name,
+        captainName: team.captain.name,
+        tournamentName: tournament.name,
+        tournamentId: tournament.id,
+      }).catch(() => {});
+    }
+  }
 
   revalidatePath("/captain/registrations");
   return reg;
+}
+
+// ─── Oyuncu ekle ──────────────────────────────────────────────
+export async function addPlayerToTeam(teamId: string, data: { name: string; number?: number }) {
+  const session = await getSession();
+  if (!session || session.role !== "CAPTAIN") throw new Error("Yetkisiz.");
+
+  const team = await prisma.team.findUnique({ where: { id: teamId, captainId: session.userId } });
+  if (!team) throw new Error("Takım bulunamadı.");
+
+  const player = await prisma.player.create({
+    data: { teamId, name: data.name.trim(), number: data.number },
+    include: { goals: true, assists: true, cards: true },
+  });
+
+  revalidatePath(`/captain/my-teams/${teamId}`);
+  return player;
+}
+
+// ─── Oyuncu çıkar ─────────────────────────────────────────────
+export async function removePlayerFromTeam(playerId: string) {
+  const session = await getSession();
+  if (!session || session.role !== "CAPTAIN") throw new Error("Yetkisiz.");
+
+  const player = await prisma.player.findUnique({
+    where: { id: playerId },
+    include: { team: { select: { captainId: true, id: true } } },
+  });
+  if (!player || player.team.captainId !== session.userId) throw new Error("Yetkisiz.");
+
+  await prisma.player.delete({ where: { id: playerId } });
+  revalidatePath(`/captain/my-teams/${player.team.id}`);
 }
 
 // ─── Organizatör kayıt onayla / reddet ────────────────────────
