@@ -19,7 +19,7 @@ export default async function CaptainDashboard() {
   return (
     <PageContent>
       <PageHeader
-        title="Dashboard"
+        title="Ana Sayfa"
         subtitle={`Merhaba, ${session?.name ?? "Kaptan"}`}
         actions={
           <ActionButton href="/captain/tournaments" variant="primary" icon={Search}>

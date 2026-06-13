@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { Search, MapPin, Calendar } from "lucide-react";
-import { PageContent, PageHeader, Card, TableHeader, StatusBadge, ProgressBar } from "@/components/ui/PageShell";
+import { PageContent, PageHeader, Card, TableHeader, ScrollTable, StatusBadge, ProgressBar } from "@/components/ui/PageShell";
 import { getAllTournaments } from "@/lib/actions/admin";
 
 const formatLabel: Record<string, string> = {
@@ -36,6 +36,7 @@ export default async function AdminTournamentsPage() {
           </div>
         </div>
 
+        <ScrollTable>
         <table className="w-full">
           <TableHeader columns={["Turnuva", "Organizatör", "Format", "Doluluk", "Tarihler", "Durum"]} />
           <tbody className="divide-y divide-[#F3F4F6]">
@@ -74,6 +75,7 @@ export default async function AdminTournamentsPage() {
             )}
           </tbody>
         </table>
+        </ScrollTable>
       </Card>
     </PageContent>
   );

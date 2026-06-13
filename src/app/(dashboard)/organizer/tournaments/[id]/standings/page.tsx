@@ -27,6 +27,7 @@ export default async function StandingsPage({ params }: { params: Promise<{ id: 
               <h3 className="text-sm font-semibold text-[#111827]">{group}</h3>
               <span className="text-xs text-[#9CA3AF]">İlk {advance} eleman geçer</span>
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#F3F4F6]">
@@ -61,6 +62,7 @@ export default async function StandingsPage({ params }: { params: Promise<{ id: 
                 })}
               </tbody>
             </table>
+            </div>
             <div className="px-4 py-2.5 flex items-center gap-4 bg-[#FAFAFA] border-t border-[#F3F4F6] rounded-b-xl">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-sm bg-[#FEF3C7] border border-[#F59E0B]/30" />

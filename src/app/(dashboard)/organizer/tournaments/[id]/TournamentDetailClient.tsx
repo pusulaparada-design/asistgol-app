@@ -363,6 +363,7 @@ export default function TournamentDetailClient({ tournament: t }: { tournament: 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader title="Gol Krallığı" />
+              <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#E5E7EB]">
@@ -384,10 +385,12 @@ export default function TournamentDetailClient({ tournament: t }: { tournament: 
                   ))}
                 </tbody>
               </table>
+              </div>
             </Card>
 
             <Card>
               <CardHeader title="Kart İstatistikleri" />
+              <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#E5E7EB]">
@@ -414,6 +417,7 @@ export default function TournamentDetailClient({ tournament: t }: { tournament: 
                   ))}
                 </tbody>
               </table>
+              </div>
             </Card>
           </div>
         )}
@@ -545,6 +549,7 @@ function StandingsTable({ rows, advanceCount }: {
 }) {
   return (
     <>
+      <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
           <tr className="border-b border-[#E5E7EB]">
@@ -573,6 +578,7 @@ function StandingsTable({ rows, advanceCount }: {
           })}
         </tbody>
       </table>
+      </div>
       {advanceCount > 0 && (
         <div className="px-4 py-2 flex items-center gap-2 border-t border-[#F3F4F6]">
           <div className="w-3 h-3 rounded-sm bg-[#FEF3C7] border border-[#F59E0B]/30"/>

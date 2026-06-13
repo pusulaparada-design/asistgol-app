@@ -2,7 +2,7 @@ import { LucideIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 // ─── Page layout ──────────────────────────────────────────────
 export function PageContent({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`p-6 space-y-6 ${className}`}>{children}</div>;
+  return <div className={`p-4 sm:p-6 space-y-4 sm:space-y-6 ${className}`}>{children}</div>;
 }
 
 export function PageHeader({
@@ -15,9 +15,9 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4">
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-bold text-[#111827] leading-tight">{title}</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-[#111827] leading-tight">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-[#6B7280]">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
@@ -115,6 +115,10 @@ export function StatCard({
 }
 
 // ─── Table ─────────────────────────────────────────────────────
+export function ScrollTable({ children }: { children: React.ReactNode }) {
+  return <div className="overflow-x-auto">{children}</div>;
+}
+
 export function TableHeader({ columns }: { columns: string[] }) {
   return (
     <thead>

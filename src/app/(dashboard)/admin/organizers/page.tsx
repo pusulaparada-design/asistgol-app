@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { Search, Eye, MapPin } from "lucide-react";
-import { PageContent, PageHeader, Card, TableHeader, StatusBadge } from "@/components/ui/PageShell";
+import { PageContent, PageHeader, Card, TableHeader, ScrollTable, StatusBadge } from "@/components/ui/PageShell";
 import { getAllOrganizers } from "@/lib/actions/admin";
 
 export default async function AdminOrganizersPage() {
@@ -18,6 +18,7 @@ export default async function AdminOrganizersPage() {
           </div>
         </div>
 
+        <ScrollTable>
         <table className="w-full">
           <TableHeader columns={["Organizatör", "Şehir", "Turnuva", "İşlem"]} />
           <tbody className="divide-y divide-[#F3F4F6]">
@@ -43,6 +44,7 @@ export default async function AdminOrganizersPage() {
             )}
           </tbody>
         </table>
+        </ScrollTable>
       </Card>
     </PageContent>
   );

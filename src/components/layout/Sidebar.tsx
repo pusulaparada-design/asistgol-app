@@ -1,7 +1,7 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { LucideIcon, LayoutDashboard, Trophy, Users, Calendar, BarChart2, Bell, Settings, ShieldCheck, Swords, UserCircle, Megaphone, Star, LogOut } from "lucide-react";
+import { LucideIcon, LayoutDashboard, Trophy, Users, Calendar, BarChart2, Bell, Settings, ShieldCheck, Swords, UserCircle, Megaphone, Star, LogOut, X } from "lucide-react";
 import { Logo } from "./Logo";
 import { NotificationBadge } from "./NotificationBadge";
 import type { Role } from "@prisma/client";
@@ -12,7 +12,7 @@ type NavGroup = { group?: string; items: NavItem[] };
 const adminNav: NavGroup[] = [
   {
     items: [
-      { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+      { label: "Ana Sayfa", href: "/admin", icon: LayoutDashboard },
     ],
   },
   {
@@ -42,7 +42,7 @@ const adminNav: NavGroup[] = [
 const organizerNav: NavGroup[] = [
   {
     items: [
-      { label: "Dashboard", href: "/organizer", icon: LayoutDashboard },
+      { label: "Ana Sayfa", href: "/organizer", icon: LayoutDashboard },
     ],
   },
   {
@@ -70,7 +70,7 @@ const organizerNav: NavGroup[] = [
 const captainNav: NavGroup[] = [
   {
     items: [
-      { label: "Dashboard", href: "/captain", icon: LayoutDashboard },
+      { label: "Ana Sayfa", href: "/captain", icon: LayoutDashboard },
     ],
   },
   {
@@ -121,7 +121,7 @@ const ROLE_LABEL: Record<Role, string> = {
   CAPTAIN: "Kaptan",
 };
 
-export function Sidebar({ user }: { user: { name: string; role: Role } | null }) {
+export function Sidebar({ user, onClose }: { user: { name: string; role: Role } | null; onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const nav = getNav(pathname);
@@ -133,10 +133,15 @@ export function Sidebar({ user }: { user: { name: string; role: Role } | null })
   }
 
   return (
-    <aside className="w-60 shrink-0 bg-[#0F1F47] flex flex-col h-screen sticky top-0">
+    <aside className="w-60 shrink-0 bg-[#0F1F47] flex flex-col h-screen">
       {/* Logo */}
       <div className="h-16 flex items-center px-5 border-b border-white/10">
         <Logo />
+        {onClose && (
+          <button onClick={onClose} className="ml-auto text-white/50 hover:text-white lg:hidden">
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
@@ -155,6 +160,7 @@ export function Sidebar({ user }: { user: { name: string; role: Role } | null })
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      onClick={onClose}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group ${
                         active
                           ? "bg-[#F59E0B] text-white shadow-sm"

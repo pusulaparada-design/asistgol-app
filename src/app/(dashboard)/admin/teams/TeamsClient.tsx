@@ -117,6 +117,7 @@ export default function AdminTeamsClient({ teams }: { teams: Teams }) {
           </div>
         </div>
 
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="bg-[#F8FAFC] border-b border-[#E5E7EB]">
@@ -139,6 +140,7 @@ export default function AdminTeamsClient({ teams }: { teams: Teams }) {
             )}
           </tbody>
         </table>
+        </div>
       </Card>
     </PageContent>
   );

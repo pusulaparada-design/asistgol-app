@@ -1,34 +1,49 @@
-import { Trophy, Users, Swords, Clock, Plus, CheckCircle, AlertTriangle, Calendar } from "lucide-react";
-import { PageContent, PageHeader, StatCard, Card, CardHeader, ActionButton, StatusBadge, ProgressBar, LiveBadge } from "@/components/ui/PageShell";
+import { Trophy, Users, Clock, Plus, Calendar } from "lucide-react";
+import { PageContent, PageHeader, StatCard, Card, CardHeader, ActionButton, StatusBadge, ProgressBar } from "@/components/ui/PageShell";
 export const dynamic = "force-dynamic";
 import { getTournaments } from "@/lib/actions/tournament";
 import { getSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export default async function OrganizerDashboard() {
   const session = await getSession();
   const myTournaments = session ? await getTournaments(session.userId).catch(() => []) : [];
 
-  const active = myTournaments.filter(t => t.status === "ACTIVE");
-  const registration = myTournaments.filter(t => t.status === "REGISTRATION");
-  const totalTeams = myTournaments.reduce((acc, t) => acc + t._count.registrations, 0);
+  const ongoing = myTournaments.filter(t => t.status !== "COMPLETED" && t.status !== "DRAFT");
+
+  const [approvedCount, pendingCount] = session ? await Promise.all([
+    prisma.teamRegistration.count({
+      where: { tournament: { organizerId: session.userId }, status: "APPROVED" },
+    }),
+    prisma.teamRegistration.count({
+      where: { tournament: { organizerId: session.userId }, status: "PENDING" },
+    }),
+  ]) : [0, 0];
 
   return (
     <PageContent>
       <PageHeader
-        title="Dashboard"
+        title="Ana Sayfa"
         subtitle={`Merhaba, ${session?.name ?? "Organizatör"}`}
         actions={
-          <ActionButton href="/organizer/tournaments/create" variant="primary" icon={Plus}>
-            Yeni Turnuva
-          </ActionButton>
+          <div className="flex items-center gap-3">
+            <div className="text-right hidden sm:block">
+              <div className="text-sm font-semibold text-[#111827]">
+                {new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+              </div>
+            </div>
+            <ActionButton href="/organizer/tournaments/create" variant="primary" icon={Plus}>
+              Yeni Turnuva
+            </ActionButton>
+          </div>
         }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Aktif Turnuva" value={active.length} icon={Trophy} color="blue" />
-        <StatCard label="Toplam Takım" value={totalTeams} icon={Users} color="gold" sublabel="tüm turnuvalarda" />
-        <StatCard label="Kayıt Açık" value={registration.length} icon={Clock} color="orange" />
+        <StatCard label="Süren Turnuva" value={ongoing.length} icon={Trophy} color="blue" sublabel="şampiyon bekleniyor" />
+        <StatCard label="Onaylı Takım" value={approvedCount} icon={Users} color="gold" sublabel="tüm turnuvalarda" />
+        <StatCard label="Onay Bekleyen" value={pendingCount} icon={Clock} color="orange" sublabel="başvuru" />
         <StatCard label="Toplam Turnuva" value={myTournaments.length} icon={Calendar} color="teal" />
       </div>
 
@@ -77,23 +92,6 @@ export default async function OrganizerDashboard() {
         </div>
 
         <div className="space-y-5">
-          {/* Hızlı işlemler */}
-          <Card>
-            <CardHeader title="Hızlı İşlemler" border={false} />
-            <div className="px-4 pb-4 grid grid-cols-2 gap-2">
-              {[
-                { label: "Yeni Turnuva", href: "/organizer/tournaments/create" },
-                { label: "Duyuru Gönder", href: "/organizer/announcements" },
-                { label: "Bildirimler", href: "/organizer/notifications" },
-                { label: "Ayarlar", href: "/organizer/settings" },
-              ].map((a) => (
-                <Link key={a.label} href={a.href} className="flex items-center justify-center p-3 rounded-xl bg-[#F4F6F9] hover:bg-[#E5E7EB] transition-colors text-xs font-medium text-[#374151] text-center">
-                  {a.label}
-                </Link>
-              ))}
-            </div>
-          </Card>
-
           {/* Son turnuva özeti */}
           {myTournaments[0] && (
             <Card>

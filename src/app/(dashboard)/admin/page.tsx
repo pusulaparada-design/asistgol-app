@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { Trophy, Users, Swords, ShieldCheck, TrendingUp, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
-import { PageContent, PageHeader, StatCard, Card, CardHeader, TableHeader, StatusBadge, ActionButton } from "@/components/ui/PageShell";
+import { PageContent, PageHeader, StatCard, Card, CardHeader, TableHeader, ScrollTable, StatusBadge, ActionButton } from "@/components/ui/PageShell";
 import { getPlatformStats, getAllTournaments, getAllOrganizers } from "@/lib/actions/admin";
 
 const activityFeed = [
@@ -32,7 +32,7 @@ export default async function AdminDashboard() {
   return (
     <PageContent>
       <PageHeader
-        title="Platform Dashboard"
+        title="Ana Sayfa"
         subtitle="Genel platform özeti"
         actions={
           <div className="flex items-center gap-2 text-xs text-[#6B7280] bg-white border border-[#E5E7EB] rounded-lg px-3 py-2">
@@ -54,23 +54,25 @@ export default async function AdminDashboard() {
               subtitle={`${organizers.length} kayıtlı`}
               actions={<ActionButton href="/admin/organizers" variant="ghost" size="sm">Tümünü Gör</ActionButton>}
             />
-            <table className="w-full">
-              <TableHeader columns={["Organizatör", "Turnuva", "Durum"]} />
-              <tbody className="divide-y divide-[#F3F4F6]">
-                {organizers.slice(0, 6).map((org) => (
-                  <tr key={org.id} className="hover:bg-[#FAFAFA]">
-                    <td className="px-4 py-3">
-                      <div className="text-sm font-medium text-[#111827]">{org.name}</div>
-                      <div className="text-xs text-[#9CA3AF]">{org.email}</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[#374151]">{org._count.organizedTournaments}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge label="Onaylı" variant="green" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <ScrollTable>
+              <table className="w-full">
+                <TableHeader columns={["Organizatör", "Turnuva", "Durum"]} />
+                <tbody className="divide-y divide-[#F3F4F6]">
+                  {organizers.slice(0, 6).map((org) => (
+                    <tr key={org.id} className="hover:bg-[#FAFAFA]">
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-medium text-[#111827]">{org.name}</div>
+                        <div className="text-xs text-[#9CA3AF]">{org.email}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-[#374151]">{org._count.organizedTournaments}</td>
+                      <td className="px-4 py-3">
+                        <StatusBadge label="Onaylı" variant="green" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ScrollTable>
           </Card>
         </div>
 
@@ -100,24 +102,26 @@ export default async function AdminDashboard() {
           subtitle={`${tournaments.length} turnuva`}
           actions={<ActionButton href="/admin/tournaments" variant="ghost" size="sm">Tümünü Gör</ActionButton>}
         />
-        <table className="w-full">
-          <TableHeader columns={["Turnuva", "Organizatör", "Takım", "Durum"]} />
-          <tbody className="divide-y divide-[#F3F4F6]">
-            {tournaments.slice(0, 8).map((t) => (
-              <tr key={t.id} className="hover:bg-[#FAFAFA]">
-                <td className="px-4 py-3 text-sm font-medium text-[#111827]">{t.name}</td>
-                <td className="px-4 py-3 text-sm text-[#6B7280]">{t.organizer.name}</td>
-                <td className="px-4 py-3 text-sm font-mono text-[#374151]">{t._count.registrations}/{t.maxTeams}</td>
-                <td className="px-4 py-3">
-                  <StatusBadge
-                    label={t.status === "ACTIVE" ? "Aktif" : t.status === "REGISTRATION" ? "Kayıt Açık" : t.status === "COMPLETED" ? "Tamamlandı" : "Taslak"}
-                    variant={t.status === "ACTIVE" ? "green" : t.status === "REGISTRATION" ? "blue" : t.status === "COMPLETED" ? "gray" : "orange"}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <ScrollTable>
+          <table className="w-full">
+            <TableHeader columns={["Turnuva", "Organizatör", "Takım", "Durum"]} />
+            <tbody className="divide-y divide-[#F3F4F6]">
+              {tournaments.slice(0, 8).map((t) => (
+                <tr key={t.id} className="hover:bg-[#FAFAFA]">
+                  <td className="px-4 py-3 text-sm font-medium text-[#111827]">{t.name}</td>
+                  <td className="px-4 py-3 text-sm text-[#6B7280]">{t.organizer.name}</td>
+                  <td className="px-4 py-3 text-sm font-mono text-[#374151]">{t._count.registrations}/{t.maxTeams}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge
+                      label={t.status === "ACTIVE" ? "Aktif" : t.status === "REGISTRATION" ? "Kayıt Açık" : t.status === "COMPLETED" ? "Tamamlandı" : "Taslak"}
+                      variant={t.status === "ACTIVE" ? "green" : t.status === "REGISTRATION" ? "blue" : t.status === "COMPLETED" ? "gray" : "orange"}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </ScrollTable>
         {tournaments.length === 0 && (
           <div className="py-10 text-center text-sm text-[#9CA3AF]">Henüz turnuva yok</div>
         )}

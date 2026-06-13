@@ -157,6 +157,7 @@ export default function TeamDetailClient({ team }: { team: Team }) {
                 }
               />
 
+              <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#E5E7EB]">
@@ -176,6 +177,7 @@ export default function TeamDetailClient({ team }: { team: Team }) {
                   ))}
                 </tbody>
               </table>
+              </div>
 
               {/* Kilitli uyarısı */}
               {isLocked && (

@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { Search, MapPin } from "lucide-react";
-import { PageContent, PageHeader, Card, TableHeader, StatusBadge, LiveBadge, ScoreBox } from "@/components/ui/PageShell";
+import { PageContent, PageHeader, Card, TableHeader, ScrollTable, StatusBadge, LiveBadge, ScoreBox } from "@/components/ui/PageShell";
 import { getAllMatchesAdmin } from "@/lib/actions/admin";
 
 const statusMap: Record<string, { label: string; variant: "red" | "blue" | "gray" | "orange" }> = {
@@ -30,6 +30,7 @@ export default async function AdminMatchesPage() {
           </div>
         </div>
 
+        <ScrollTable>
         <table className="w-full">
           <TableHeader columns={["Turnuva / Aşama", "Ev Sahibi", "Skor", "Misafir", "Tarih", "Saha", "Durum"]} />
           <tbody className="divide-y divide-[#F3F4F6]">
@@ -75,6 +76,7 @@ export default async function AdminMatchesPage() {
             )}
           </tbody>
         </table>
+        </ScrollTable>
       </Card>
     </PageContent>
   );

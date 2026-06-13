@@ -3,7 +3,7 @@ import { usePathname } from "next/navigation";
 import { Bell, Search, ChevronDown } from "lucide-react";
 
 const pageTitles: Record<string, string> = {
-  "/admin": "Dashboard",
+  "/admin": "Ana Sayfa",
   "/admin/organizers": "Organizatörler",
   "/admin/tournaments": "Tüm Turnuvalar",
   "/admin/teams": "Tüm Takımlar",
@@ -11,13 +11,13 @@ const pageTitles: Record<string, string> = {
   "/admin/stats": "İstatistikler",
   "/admin/notifications": "Bildirimler",
   "/admin/settings": "Ayarlar",
-  "/organizer": "Dashboard",
+  "/organizer": "Ana Sayfa",
   "/organizer/tournaments": "Turnuvalarım",
   "/organizer/tournaments/create": "Turnuva Oluştur",
   "/organizer/announcements": "Duyurular",
   "/organizer/notifications": "Bildirimler",
   "/organizer/settings": "Ayarlar",
-  "/captain": "Dashboard",
+  "/captain": "Ana Sayfa",
   "/captain/tournaments": "Turnuva Keşfet",
   "/captain/registrations": "Kayıtlarım",
   "/captain/my-teams": "Takımlarım",
