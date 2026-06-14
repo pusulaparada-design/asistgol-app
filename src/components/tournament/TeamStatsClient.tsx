@@ -226,7 +226,6 @@ export default function TeamStatsClient({
                 const result = played ? matchResult(m, teamId) : null;
                 const hasEvents = played && (m.goals.length + m.assists.length + m.cards.length) > 0;
 
-                // Her oyuncunun hangi takımda olduğunu belirle (lineup + gol eventlerinden)
                 const playerTeamMap: Record<string, string> = {};
                 for (const pid of m.homeLineup) playerTeamMap[pid] = m.homeTeamId;
                 for (const pid of m.awayLineup) playerTeamMap[pid] = m.awayTeamId;
@@ -239,84 +238,87 @@ export default function TeamStatsClient({
                 const homeCards   = m.cards.filter(c => playerTeamMap[c.player.id] === m.homeTeamId);
                 const awayCards   = m.cards.filter(c => playerTeamMap[c.player.id] === m.awayTeamId);
 
-                const renderEvents = (
+                // rev=true → home takım olayları sağdan sola (skora doğru) akar
+                const renderTeamEvents = (
                   goals: typeof m.goals,
                   assists: typeof m.assists,
                   cards: typeof m.cards,
+                  rev = false,
                 ) => (
-                  <div className="space-y-1.5">
+                  <div className={`space-y-1.5 ${rev ? "text-right" : ""}`}>
                     {goals.map(g => (
-                      <div key={g.id} className="flex items-center gap-2 text-xs text-[#374151]">
-                        <span className="text-base">⚽</span>
+                      <div key={g.id} className={`flex items-center gap-1.5 text-xs text-[#374151] ${rev ? "flex-row-reverse" : ""}`}>
+                        <span>⚽</span>
                         <span className="font-medium">{g.player.name}</span>
-                        {g.ownGoal && <span className="text-[#9CA3AF]">(kendi kalesine)</span>}
-                        {g.minute && <span className="text-[#9CA3AF] ml-auto">{g.minute}'</span>}
+                        {g.ownGoal && <span className="text-[#9CA3AF] text-[10px]">(kendi kalesine)</span>}
+                        {g.minute != null && <span className="text-[#9CA3AF] shrink-0">{g.minute}'</span>}
                       </div>
                     ))}
                     {assists.map(a => (
-                      <div key={a.id} className="flex items-center gap-2 text-xs text-[#6B7280]">
-                        <span className="text-base">🎯</span>
+                      <div key={a.id} className={`flex items-center gap-1.5 text-xs text-[#6B7280] ${rev ? "flex-row-reverse" : ""}`}>
+                        <span>🎯</span>
                         <span className="font-medium">{a.player.name}</span>
-                        <span className="text-[#9CA3AF]">asist</span>
-                        {a.minute && <span className="text-[#9CA3AF] ml-auto">{a.minute}'</span>}
+                        <span className="text-[#9CA3AF] text-[10px]">asist</span>
+                        {a.minute != null && <span className="text-[#9CA3AF] shrink-0">{a.minute}'</span>}
                       </div>
                     ))}
                     {cards.map(c => (
-                      <div key={c.id} className="flex items-center gap-2 text-xs text-[#374151]">
+                      <div key={c.id} className={`flex items-center gap-1.5 text-xs text-[#374151] ${rev ? "flex-row-reverse" : ""}`}>
                         <div className={`w-3 h-4 rounded-sm shrink-0 ${c.type === "YELLOW" ? "bg-[#F59E0B]" : "bg-[#EF4444]"}`} />
                         <span className="font-medium">{c.player.name}</span>
-                        {c.minute && <span className="text-[#9CA3AF] ml-auto">{c.minute}'</span>}
+                        {c.minute != null && <span className="text-[#9CA3AF] shrink-0">{c.minute}'</span>}
                       </div>
                     ))}
                   </div>
                 );
 
+                // Sütun genişlikleri maç satırı ve olaylar arasında aynı olmalı
+                // w-24: tarih | w-10: badge | flex-1: ev takım | w-20: skor | flex-1: dep takım | trailing
                 return (
                   <div key={m.id}>
-                    <div className="flex items-center gap-3 px-5 py-4">
-                      {/* Tarih */}
-                      <div className="w-28 shrink-0">
+                    {/* Maç satırı */}
+                    <div className="flex items-center gap-3 px-5 py-3.5">
+                      <div className="w-24 shrink-0">
                         <div className="text-xs text-[#9CA3AF]">{fmt(m.date)}</div>
                         {m.time && <div className="text-xs text-[#6B7280]">{m.time}</div>}
                       </div>
-
-                      {/* Ev/Deplasman */}
-                      <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded ${isHome ? "bg-[#EFF6FF] text-[#3B82F6]" : "bg-[#F4F6F9] text-[#6B7280]"}`}>
-                        {isHome ? "EV" : "DEP"}
-                      </span>
-
-                      {/* Ev – Skor – Deplasman */}
-                      <div className="flex-1 flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-semibold text-[#111827] truncate text-right flex-1">{m.homeTeam.name}</span>
-                        {played ? (
-                          <span className="font-mono font-extrabold text-sm text-[#111827] shrink-0 w-14 text-center">{m.homeScore} – {m.awayScore}</span>
-                        ) : (
-                          <span className="text-xs text-[#D1D5DB] shrink-0 w-14 text-center">vs</span>
-                        )}
-                        <span className="text-sm font-semibold text-[#111827] truncate flex-1">{m.awayTeam.name}</span>
+                      <div className="w-10 shrink-0">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isHome ? "bg-[#EFF6FF] text-[#3B82F6]" : "bg-[#F4F6F9] text-[#6B7280]"}`}>
+                          {isHome ? "EV" : "DEP"}
+                        </span>
                       </div>
-
-                      {/* Sonuç */}
-                      {result && (
-                        <span className={`shrink-0 w-8 h-8 rounded-lg text-xs flex items-center justify-center ${RESULT_CLS[result]}`}>
-                          {RESULT_LABEL[result]}
-                        </span>
-                      )}
-
-                      {/* Grup */}
-                      {m.group?.name && (
-                        <span className="hidden sm:block shrink-0 text-[10px] bg-[#F4F6F9] text-[#6B7280] px-2 py-0.5 rounded font-medium">
-                          {m.group.name}
-                        </span>
-                      )}
+                      <div className="flex-1 text-sm font-semibold text-[#111827] text-right truncate">{m.homeTeam.name}</div>
+                      <div className="w-20 shrink-0 text-center">
+                        {played
+                          ? <span className="font-mono font-extrabold text-base text-[#111827]">{m.homeScore} – {m.awayScore}</span>
+                          : <span className="text-sm text-[#D1D5DB]">vs</span>}
+                      </div>
+                      <div className="flex-1 text-sm font-semibold text-[#111827] truncate">{m.awayTeam.name}</div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {result && (
+                          <span className={`w-8 h-8 rounded-lg text-xs font-bold flex items-center justify-center ${RESULT_CLS[result]}`}>
+                            {RESULT_LABEL[result]}
+                          </span>
+                        )}
+                        {m.group?.name && (
+                          <span className="hidden sm:block text-[10px] bg-[#F4F6F9] text-[#6B7280] px-2 py-0.5 rounded font-medium">
+                            {m.group.name}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Maç olayları */}
+                    {/* Olaylar — maç satırıyla aynı sütun hizası */}
                     {hasEvents && (
-                      <div className="bg-[#F8FAFC] border-t border-[#F3F4F6] px-5 py-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>{renderEvents(homeGoals, homeAssists, homeCards)}</div>
-                          <div>{renderEvents(awayGoals, awayAssists, awayCards)}</div>
+                      <div className="flex gap-3 px-5 pb-3 bg-[#F8FAFC] border-t border-[#F3F4F6]">
+                        <div className="w-24 shrink-0" />
+                        <div className="w-10 shrink-0" />
+                        <div className="flex-1 pt-2.5">
+                          {renderTeamEvents(homeGoals, homeAssists, homeCards, true)}
+                        </div>
+                        <div className="w-20 shrink-0" />
+                        <div className="flex-1 pt-2.5">
+                          {renderTeamEvents(awayGoals, awayAssists, awayCards, false)}
                         </div>
                       </div>
                     )}
