@@ -73,26 +73,38 @@ export default async function TournamentStatsPage({ params }: { params: Promise<
           </div>
         </Card>
 
-        {/* Card stats */}
+        {/* Fair Play sıralaması */}
         <Card>
-          <CardHeader title="Kart İstatistikleri" subtitle="Takım bazında" />
+          <CardHeader title="Fair Play Sıralaması" subtitle="En az kart alan takımlar" />
           <div className="divide-y divide-[#F3F4F6]">
             {cardStats.length === 0 && <div className="py-6 text-center text-sm text-[#9CA3AF]">Henüz kart yok</div>}
-            {cardStats.map((s) => (
-              <div key={s.name} className="flex items-center gap-3 px-4 py-3">
-                <div className="flex-1 text-sm font-medium text-[#111827]">{s.name}</div>
-                <div className="flex gap-2">
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-4 bg-[#F59E0B] rounded-sm" />
-                    <span className="text-sm font-bold text-[#D97706]">{s.yellow}</span>
+            {[...cardStats]
+              .sort((a, b) => (a.yellow + a.red * 3) - (b.yellow + b.red * 3))
+              .map((s, i) => {
+                const score = s.yellow + s.red * 3;
+                return (
+                  <div key={s.name} className="flex items-center gap-3 px-4 py-3">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${i === 0 ? "bg-[#ECFDF5] text-[#059669]" : "bg-[#F3F4F6] text-[#9CA3AF]"}`}>{i + 1}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-[#111827]">{s.name}</span>
+                        {i === 0 && <span className="text-xs text-[#059669] font-medium">Fair Play Lideri</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        <div className="w-2.5 h-3.5 bg-[#F59E0B] rounded-sm" />
+                        <span className="text-xs text-[#D97706]">{s.yellow}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-2.5 h-3.5 bg-[#EF4444] rounded-sm" />
+                        <span className="text-xs text-[#DC2626]">{s.red}</span>
+                      </div>
+                      <span className="text-xs font-bold text-[#374151] w-14 text-right">{score} puan</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <div className="w-3 h-4 bg-[#EF4444] rounded-sm" />
-                    <span className="text-sm font-bold text-[#DC2626]">{s.red}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+                );
+              })}
           </div>
         </Card>
       </div>
