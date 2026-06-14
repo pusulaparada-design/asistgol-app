@@ -315,14 +315,8 @@ export default function TeamStatsClient({
                     {hasEvents && (
                       <div className="bg-[#F8FAFC] border-t border-[#F3F4F6] px-5 py-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <div className="text-xs font-bold text-[#374151] mb-2 uppercase tracking-wide">{m.homeTeam.name}</div>
-                            {renderEvents(homeGoals, homeAssists, homeCards)}
-                          </div>
-                          <div>
-                            <div className="text-xs font-bold text-[#374151] mb-2 uppercase tracking-wide">{m.awayTeam.name}</div>
-                            {renderEvents(awayGoals, awayAssists, awayCards)}
-                          </div>
+                          <div>{renderEvents(homeGoals, homeAssists, homeCards)}</div>
+                          <div>{renderEvents(awayGoals, awayAssists, awayCards)}</div>
                         </div>
                       </div>
                     )}
