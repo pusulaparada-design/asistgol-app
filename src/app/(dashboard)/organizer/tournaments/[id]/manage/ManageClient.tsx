@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   CheckCircle, XCircle, Trophy,
   Calendar, Users, Phone, CreditCard, User,
-  LayoutGrid, CalendarDays, Zap, Info,
+  LayoutGrid, CalendarDays, Zap, Info, FlagTriangleRight,
 } from "lucide-react";
 import { PageContent, PageHeader, Card, StatusBadge } from "@/components/ui/PageShell";
 import {
@@ -17,6 +17,7 @@ import {
   getGroupsWithTeams,
   getTournament,
   updateTournamentDetails,
+  completeTournament,
 } from "@/lib/actions/tournament";
 import MatchModal, { type SaveResult } from "../MatchModal";
 import GroupsTab from "./GroupsTab";
@@ -155,6 +156,8 @@ function MatchesTab({ matches, onScore }: { matches: Matches; onScore: (m: TMatc
 
   return (
     <Card>
+      <div className="overflow-x-auto">
+      <div className="min-w-[560px]">
       <div className="grid grid-cols-[12px_80px_1fr_96px_1fr_80px] items-center gap-2 px-4 py-2 bg-[#F8FAFC] border-b border-[#E5E7EB]">
         <span />
         <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">Tarih</span>
@@ -206,6 +209,8 @@ function MatchesTab({ matches, onScore }: { matches: Matches; onScore: (m: TMatc
             </div>
           );
         })}
+      </div>
+      </div>
       </div>
     </Card>
   );
@@ -378,6 +383,8 @@ export default function ManageClient({
   const [localMatches, setLocalMatches] = useState(matches);
   const [scoreMatch, setScoreMatch] = useState<TMatch | null>(null);
   const [matchWeeks, setMatchWeeks] = useState<MatchWeek[]>([]);
+  const [completing, startComplete] = useTransition();
+  const router = useRouter();
 
   useEffect(() => { setLocalMatches(matches); }, [matches]);
 
@@ -390,14 +397,39 @@ export default function ManageClient({
     setScoreMatch(null);
   }
 
+  function handleComplete() {
+    if (!confirm("Turnuvayı tamamlandı olarak işaretlemek istediğinizden emin misiniz? Bu işlem geri alınamaz.")) return;
+    startComplete(async () => {
+      await completeTournament(tournamentId);
+      router.refresh();
+    });
+  }
+
   const pendingCount = registrations.filter(r => r.status === "PENDING").length;
   const playedCount = localMatches.filter(m => m.homeScore !== null).length;
+  const isActive = tournament.status === "ACTIVE";
+  const isCompleted = tournament.status === "COMPLETED";
 
   return (
     <PageContent>
       <PageHeader
         title="Yönetim"
         subtitle={`${localMatches.length} maç · ${playedCount} oynandı · ${registrations.length} başvuru`}
+        actions={isActive ? (
+          <button
+            onClick={handleComplete}
+            disabled={completing}
+            className="flex items-center gap-2 px-4 py-2 bg-[#059669] text-white text-sm font-semibold rounded-lg hover:bg-[#047857] transition-colors disabled:opacity-60"
+          >
+            <FlagTriangleRight size={15} />
+            {completing ? "İşleniyor..." : "Turnuvayı Tamamla"}
+          </button>
+        ) : isCompleted ? (
+          <span className="flex items-center gap-2 px-4 py-2 bg-[#F4F6F9] text-[#6B7280] text-sm font-semibold rounded-lg">
+            <CheckCircle size={15} />
+            Tamamlandı
+          </span>
+        ) : undefined}
       />
 
       {/* Tab bar */}
@@ -437,7 +469,14 @@ export default function ManageClient({
         <ScheduleTab weeks={matchWeeks} onChange={setMatchWeeks} />
       )}
       {tab === "fixture" && (
-        <FixtureTab groups={groups} matchWeeks={matchWeeks} tournamentId={tournamentId} matches={localMatches} />
+        <FixtureTab
+          groups={groups}
+          matchWeeks={matchWeeks}
+          tournamentId={tournamentId}
+          matches={localMatches}
+          advanceCount={tournament.advanceCount ?? 0}
+          winPoints={tournament.winPoints}
+        />
       )}
       {tab === "info" && (
         <TournamentInfoTab tournament={tournament} tournamentId={tournamentId} />

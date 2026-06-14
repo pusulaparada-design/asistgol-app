@@ -2,9 +2,9 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Play, Save, AlertTriangle, CheckCircle, RefreshCw, Calendar } from "lucide-react";
+import { Play, Save, AlertTriangle, CheckCircle, RefreshCw, Calendar, Zap } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/PageShell";
-import { saveGeneratedFixtures, rescheduleMatches, getTournamentMatches } from "@/lib/actions/tournament";
+import { saveGeneratedFixtures, rescheduleMatches, getTournamentMatches, generateKnockoutFixtures } from "@/lib/actions/tournament";
 import type { getGroupsWithTeams } from "@/lib/actions/tournament";
 import type { MatchWeek } from "./ScheduleTab";
 
@@ -371,17 +371,276 @@ function EditableFixture({ matches, tournamentId }: { matches: TMatch[]; tournam
   );
 }
 
+/* ── Eleme yardımcıları ────────────────────────────────────────── */
+const KO_ROUND_LABEL: Record<string, string> = {
+  QUARTER_FINAL: "Çeyrek Final",
+  SEMI_FINAL: "Yarı Final",
+  FINAL: "Final",
+};
+
+function koStandings(group: Groups[number], matches: TMatch[], winPts: number) {
+  const rows = group.teams.map((gt) => ({ team: gt.team, pts: 0, gf: 0, ga: 0 }));
+  for (const m of matches) {
+    if (m.groupId !== group.id || m.homeScore === null || m.awayScore === null) continue;
+    const h = rows.find((r) => r.team.id === m.homeTeamId);
+    const a = rows.find((r) => r.team.id === m.awayTeamId);
+    if (!h || !a) continue;
+    h.gf += m.homeScore; h.ga += m.awayScore;
+    a.gf += m.awayScore; a.ga += m.homeScore;
+    if (m.homeScore > m.awayScore) h.pts += winPts;
+    else if (m.homeScore < m.awayScore) a.pts += winPts;
+    else { h.pts++; a.pts++; }
+  }
+  return rows.sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga));
+}
+
+type KOPair = { homeId: string; homeName: string; awayId: string; awayName: string };
+
+function buildQFPairs(
+  groups: Groups,
+  matches: TMatch[],
+  advanceCount: number,
+  winPts: number,
+): KOPair[] {
+  const pairs: KOPair[] = [];
+  for (let gi = 0; gi < groups.length; gi += 2) {
+    const gj = gi + 1;
+    if (gj >= groups.length) break;
+    const si = koStandings(groups[gi], matches, winPts);
+    const sj = koStandings(groups[gj], matches, winPts);
+    for (let r = 1; r <= advanceCount; r++) {
+      const rank = Math.ceil(r / 2);
+      const opp = advanceCount + 1 - rank;
+      const [h, a] =
+        r % 2 === 1
+          ? [si[rank - 1]?.team, sj[opp - 1]?.team]
+          : [sj[rank - 1]?.team, si[opp - 1]?.team];
+      if (!h || !a) continue;
+      pairs.push({ homeId: h.id, homeName: h.name, awayId: a.id, awayName: a.name });
+    }
+  }
+  return pairs;
+}
+
+function matchWinner(m: TMatch): { id: string; name: string } | null {
+  if (m.homeScore === null || m.awayScore === null) return null;
+  if (m.homeScore > m.awayScore) return { id: m.homeTeamId, name: m.homeTeam.name };
+  if (m.awayScore > m.homeScore) return { id: m.awayTeamId, name: m.awayTeam.name };
+  return null; // draw — no winner yet
+}
+
+function buildSFPairs(qfMatches: TMatch[]): KOPair[] {
+  const pairs: KOPair[] = [];
+  for (let i = 0; i < qfMatches.length; i += 2) {
+    const w1 = matchWinner(qfMatches[i]);
+    const w2 = matchWinner(qfMatches[i + 1]);
+    if (!w1 || !w2) continue;
+    pairs.push({ homeId: w1.id, homeName: w1.name, awayId: w2.id, awayName: w2.name });
+  }
+  return pairs;
+}
+
+function buildFinalPair(sfMatches: TMatch[]): KOPair[] {
+  const w1 = matchWinner(sfMatches[0]);
+  const w2 = matchWinner(sfMatches[1]);
+  if (!w1 || !w2) return [];
+  return [{ homeId: w1.id, homeName: w1.name, awayId: w2.id, awayName: w2.name }];
+}
+
+/* ── Eleme oluşturucu bileşeni ──────────────────────────────────── */
+function KnockoutSection({
+  groups,
+  matches,
+  advanceCount,
+  winPoints,
+  tournamentId,
+}: {
+  groups: Groups;
+  matches: TMatch[];
+  advanceCount: number;
+  winPoints: number;
+  tournamentId: string;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [dates, setDates] = useState<Record<string, { date: string; time: string }>>({});
+
+  const kMatches = matches.filter((m) => !m.groupId && m.round);
+  const qfMatches = kMatches.filter((m) => m.round === "QUARTER_FINAL");
+  const sfMatches = kMatches.filter((m) => m.round === "SEMI_FINAL");
+  const finalMatches = kMatches.filter((m) => m.round === "FINAL");
+
+  const groupsComplete = groups.length >= 2 && groups.every((g) => {
+    const gm = matches.filter((m) => m.groupId === g.id);
+    return gm.length > 0 && gm.every((m) => m.homeScore !== null);
+  });
+
+  const qfComplete = qfMatches.length > 0 && qfMatches.every((m) => m.homeScore !== null);
+  const sfComplete = sfMatches.length > 0 && sfMatches.every((m) => m.homeScore !== null);
+
+  const pendingRound =
+    qfMatches.length === 0 ? "QUARTER_FINAL"
+    : qfComplete && sfMatches.length === 0 && qfMatches.length > 2 ? "SEMI_FINAL"
+    : (qfComplete && qfMatches.length <= 2 && finalMatches.length === 0) || (sfComplete && finalMatches.length === 0) ? "FINAL"
+    : null;
+
+  const pairs: KOPair[] =
+    pendingRound === "QUARTER_FINAL" ? buildQFPairs(groups, matches, advanceCount, winPoints)
+    : pendingRound === "SEMI_FINAL" ? buildSFPairs(qfMatches)
+    : pendingRound === "FINAL" ? buildFinalPair(sfMatches.length > 0 ? sfMatches : qfMatches)
+    : [];
+
+  const canGenerate =
+    pendingRound === "QUARTER_FINAL" ? groupsComplete
+    : pendingRound === "SEMI_FINAL" ? qfComplete
+    : pendingRound === "FINAL" ? (sfComplete || (qfComplete && qfMatches.length <= 2))
+    : false;
+
+  function setDate(key: string, field: "date" | "time", val: string) {
+    setDates((prev) => {
+      const cur = prev[key] ?? { date: "", time: "" };
+      return { ...prev, [key]: { ...cur, [field]: val } };
+    });
+  }
+
+  function handleGenerate() {
+    if (!pendingRound || !canGenerate || pairs.length === 0) return;
+    const fixtures = pairs.map((p, i) => {
+      const key = `${pendingRound}-${i}`;
+      return {
+        homeTeamId: p.homeId,
+        awayTeamId: p.awayId,
+        round: pendingRound,
+        date: dates[key]?.date || null,
+        time: dates[key]?.time || null,
+      };
+    });
+    startTransition(async () => {
+      await generateKnockoutFixtures(tournamentId, fixtures);
+      setDates({});
+      router.refresh();
+    });
+  }
+
+  if (advanceCount === 0 || groups.length < 2) return null;
+
+  return (
+    <Card>
+      <CardHeader
+        title="Eleme Turları"
+        subtitle={
+          kMatches.length === 0
+            ? "Grup aşaması tamamlandığında eleme maçları oluşturun"
+            : `${kMatches.length} eleme maçı · ${kMatches.filter((m) => m.homeScore !== null).length} oynandı`
+        }
+      />
+
+      {/* Existing knockout matches summary */}
+      {kMatches.length > 0 && (
+        <div className="divide-y divide-[#F3F4F6] border-b border-[#F3F4F6]">
+          {["QUARTER_FINAL", "SEMI_FINAL", "FINAL"].map((round) => {
+            const rm = kMatches.filter((m) => m.round === round);
+            if (rm.length === 0) return null;
+            const played = rm.filter((m) => m.homeScore !== null).length;
+            return (
+              <div key={round} className="flex items-center gap-3 px-5 py-2.5">
+                <span className="text-[10px] bg-[#EFF6FF] text-[#2563EB] px-2 py-0.5 rounded-md font-semibold whitespace-nowrap">
+                  {KO_ROUND_LABEL[round] ?? round}
+                </span>
+                <div className="flex gap-2 flex-wrap">
+                  {rm.map((m) => (
+                    <span key={m.id} className={`text-[10px] font-medium px-2 py-0.5 rounded-md ${
+                      m.homeScore !== null ? "bg-[#ECFDF5] text-[#059669]" : "bg-[#F3F4F6] text-[#6B7280]"
+                    }`}>
+                      {m.homeTeam.name} {m.homeScore !== null ? `${m.homeScore}–${m.awayScore}` : "vs"} {m.awayTeam.name}
+                      {m.date && ` · ${new Date(m.date).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}`}
+                    </span>
+                  ))}
+                </div>
+                <span className="ml-auto text-[10px] text-[#9CA3AF]">{played}/{rm.length}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Generator for next pending round */}
+      {pendingRound && (
+        <div className="px-5 py-4 space-y-3">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] bg-[#FEF3C7] text-[#D97706] px-2 py-0.5 rounded-md font-semibold">
+              {KO_ROUND_LABEL[pendingRound] ?? pendingRound}
+            </span>
+            <span className="text-xs text-[#6B7280]">{pairs.length} maç</span>
+          </div>
+
+          {!canGenerate && pendingRound === "QUARTER_FINAL" && (
+            <div className="flex items-center gap-2 text-xs text-[#D97706]">
+              <AlertTriangle size={13} />
+              Tüm grup maçları tamamlanmadan çeyrek final oluşturulamaz.
+            </div>
+          )}
+
+          {pairs.length > 0 && (
+            <div className="space-y-2">
+              {pairs.map((p, i) => {
+                const key = `${pendingRound}-${i}`;
+                return (
+                  <div key={i} className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-medium text-[#111827] w-[180px] truncate text-right">{p.homeName}</span>
+                    <span className="text-xs text-[#D1D5DB] font-bold">–</span>
+                    <span className="text-xs font-medium text-[#111827] w-[180px] truncate">{p.awayName}</span>
+                    <TurkishDatePicker
+                      value={dates[key]?.date ?? ""}
+                      onChange={(v) => setDate(key, "date", v)}
+                    />
+                    <TimeInputCell
+                      value={dates[key]?.time ?? ""}
+                      onChange={(v) => setDate(key, "time", v)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {canGenerate && pairs.length > 0 && (
+            <button
+              onClick={handleGenerate}
+              disabled={isPending}
+              className="flex items-center gap-2 px-4 py-2 bg-[#0F1F47] text-white text-xs font-semibold rounded-lg hover:bg-[#1A2F5A] disabled:opacity-50 transition-colors mt-1"
+            >
+              <Zap size={13} className={isPending ? "animate-pulse" : ""} />
+              {isPending ? "Oluşturuluyor..." : `${KO_ROUND_LABEL[pendingRound] ?? pendingRound} Maçlarını Oluştur`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {!pendingRound && kMatches.length > 0 && finalMatches.some((m) => m.homeScore !== null) && (
+        <div className="px-5 py-4 flex items-center gap-2 text-sm font-semibold text-[#059669]">
+          <CheckCircle size={16} /> Tüm eleme turları tamamlandı
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /* ── Ana bileşen ──────────────────────────────────────────────── */
 export default function FixtureTab({
   groups,
   matchWeeks,
   tournamentId,
   matches = [],
+  advanceCount = 0,
+  winPoints = 3,
 }: {
   groups: Groups;
   matchWeeks: MatchWeek[];
   tournamentId: string;
   matches?: TMatch[];
+  advanceCount?: number;
+  winPoints?: number;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -437,6 +696,17 @@ export default function FixtureTab({
     <div className="space-y-4">
       {/* Mevcut fikstür (düzenlenebilir) */}
       {hasMatches && <EditableFixture matches={matches} tournamentId={tournamentId} />}
+
+      {/* Eleme maçları */}
+      {advanceCount > 0 && (
+        <KnockoutSection
+          groups={groups}
+          matches={matches}
+          advanceCount={advanceCount}
+          winPoints={winPoints}
+          tournamentId={tournamentId}
+        />
+      )}
 
       {/* Fikstür oluşturucu */}
       <div className="space-y-4">

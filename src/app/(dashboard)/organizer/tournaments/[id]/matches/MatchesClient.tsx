@@ -66,7 +66,7 @@ export default function MatchesClient({
         subtitle={`${played.length} oynandı · ${live.length} devam ediyor · ${remaining.length} kalan`}
       />
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: "Toplam",       val: matches.length,   color: "text-[#0F1F47]" },
           { label: "Oynandı",      val: played.length,    color: "text-[#10B981]" },
@@ -110,11 +110,13 @@ export default function MatchesClient({
                   </div>
                   <div className="flex-1 text-sm font-semibold text-[#111827] truncate">{m.awayTeam.name}</div>
                   <div className="shrink-0 flex items-center gap-2">
-                    <StatusBadge
-                      label={isPlayed ? "Oynandı" : isLive ? "Devam Ediyor" : "Planlandı"}
-                      variant={isPlayed ? "gray" : isLive ? "gold" : "blue"}
-                      dot={false}
-                    />
+                    <span className="hidden sm:inline-flex">
+                      <StatusBadge
+                        label={isPlayed ? "Oynandı" : isLive ? "Devam Ediyor" : "Planlandı"}
+                        variant={isPlayed ? "gray" : isLive ? "gold" : "blue"}
+                        dot={false}
+                      />
+                    </span>
                     {isPlayed ? (
                       <span className="inline-flex items-center px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-[#F3F4F6] text-[#6B7280]">
                         Oynandı

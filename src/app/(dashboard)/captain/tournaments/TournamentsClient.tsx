@@ -3,11 +3,13 @@ import { useState } from "react";
 import { MapPin, Calendar, Search, Trophy } from "lucide-react";
 import { PageContent, PageHeader, Card, StatusBadge, ProgressBar } from "@/components/ui/PageShell";
 import Link from "next/link";
+import RegisterTournamentModal from "@/components/tournament/RegisterTournamentModal";
 import type { getMyTeams } from "@/lib/actions/team";
 import type { getTournaments } from "@/lib/actions/tournament";
 
 type MyTeams = Awaited<ReturnType<typeof getMyTeams>>;
 type AllTournaments = Awaited<ReturnType<typeof getTournaments>>;
+type Tournament = AllTournaments[number];
 
 const FORMAT_LABELS: Record<string, string> = {
   GROUP_KNOCKOUT: "Grup + Eleme",
@@ -16,10 +18,10 @@ const FORMAT_LABELS: Record<string, string> = {
 };
 
 const STATUS_MAP: Record<string, { label: string; variant: "green" | "blue" | "gray" | "orange" }> = {
-  REGISTRATION: { label: "Kayıt Açık",  variant: "green" },
-  ACTIVE:       { label: "Devam Ediyor",variant: "blue"  },
-  COMPLETED:    { label: "Tamamlandı",  variant: "gray"  },
-  DRAFT:        { label: "Taslak",      variant: "orange"},
+  REGISTRATION: { label: "Talep Topluyor", variant: "green" },
+  ACTIVE:       { label: "Devam Ediyor",   variant: "blue"  },
+  COMPLETED:    { label: "Bitti",          variant: "gray"  },
+  DRAFT:        { label: "Taslak",         variant: "orange"},
 };
 
 const REG_STATUS: Record<string, { label: string; variant: "green" | "blue" | "gray" | "orange" }> = {
@@ -42,6 +44,7 @@ export default function TournamentsClient({
 }) {
   const [cityFilter, setCityFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [registerModal, setRegisterModal] = useState<Tournament | null>(null);
 
   // Kaptanın tüm kayıtları (takım + turnuva + durum)
   const myRegistrations = myTeams.flatMap(team =>
@@ -162,10 +165,14 @@ export default function TournamentsClient({
 
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
           {filtered.map((t) => {
-            const s = STATUS_MAP[t.status] ?? STATUS_MAP.DRAFT;
-            const regCount = t._count.registrations;
-            const spotsLeft = t.maxTeams - regCount;
-            const isUrgent = spotsLeft <= 2 && t.status === "REGISTRATION";
+            const approvedCount = t.registrations.length;
+            const spotsLeft = t.maxTeams - approvedCount;
+            const isFull = approvedCount >= t.maxTeams;
+            const canRegister = t.status === "REGISTRATION" && !isFull;
+            const isUrgent = spotsLeft <= 2 && canRegister;
+            const s = (t.status === "REGISTRATION" && isFull)
+              ? { label: "Hazırlanıyor", variant: "orange" as const }
+              : STATUS_MAP[t.status] ?? STATUS_MAP.DRAFT;
 
             return (
               <Card key={t.id} className="hover:shadow-md transition-shadow cursor-pointer">
@@ -196,11 +203,11 @@ export default function TournamentsClient({
                   <div className="mb-3">
                     <div className="flex justify-between text-xs mb-1">
                       <span className="text-[#9CA3AF]">Doluluk</span>
-                      <span className={`font-semibold ${isUrgent ? "text-[#EF4444]" : "text-[#374151]"}`}>
-                        {regCount}/{t.maxTeams} takım{isUrgent && ` — Son ${spotsLeft} yer!`}
+                      <span className={`font-semibold ${isFull ? "text-[#EF4444]" : isUrgent ? "text-[#F59E0B]" : "text-[#374151]"}`}>
+                        {approvedCount}/{t.maxTeams} takım{isFull ? " — Dolu" : isUrgent ? ` — Son ${spotsLeft} yer!` : ""}
                       </span>
                     </div>
-                    <ProgressBar value={regCount} max={t.maxTeams} color={isUrgent ? "red" : "gold"} />
+                    <ProgressBar value={approvedCount} max={t.maxTeams} color={isFull ? "red" : isUrgent ? "red" : "gold"} />
                   </div>
 
                   <div className="flex items-center gap-1 text-xs text-[#9CA3AF] mb-4">
@@ -212,15 +219,14 @@ export default function TournamentsClient({
                       <span className="text-xs text-[#9CA3AF]">Kayıt Ücreti</span>
                       <div className="text-sm font-bold text-[#111827]">{t.fee ? `₺${t.fee}` : "Ücretsiz"}</div>
                     </div>
-                    <span
-                      className={`px-4 py-2 text-sm font-semibold rounded-lg ${
-                        t.status === "REGISTRATION"
-                          ? "bg-[#0F1F47] text-white"
-                          : "bg-[#F4F6F9] text-[#6B7280]"
-                      }`}
-                    >
-                      {t.status === "REGISTRATION" ? "Kayıt Ol" : "İncele"}
-                    </span>
+                    {canRegister && (
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setRegisterModal(t); }}
+                        className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#0F1F47] text-white hover:bg-[#1a2f5e] transition-colors"
+                      >
+                        Kayıt Ol
+                      </button>
+                    )}
                   </div>
                 </Link>
               </Card>
@@ -228,6 +234,14 @@ export default function TournamentsClient({
           })}
         </div>
       </div>
+
+      {registerModal && (
+        <RegisterTournamentModal
+          tournament={registerModal}
+          myTeams={myTeams}
+          onClose={() => setRegisterModal(null)}
+        />
+      )}
     </PageContent>
   );
 }

@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
@@ -77,6 +78,15 @@ export function roleRedirect(role: Role): string {
   if (role === "ADMIN") return "/admin";
   if (role === "ORGANIZER") return "/organizer";
   return "/captain";
+}
+
+// ─── Sayfa/Layout yetki kontrolü ───────────────────────────────
+// Oturum yoksa /login'e, rol uyuşmuyorsa kullanıcının kendi paneline yönlendirir.
+export async function requireRole(role: Role): Promise<SessionPayload> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (session.role !== role) redirect(roleRedirect(session.role));
+  return session;
 }
 
 export const COOKIE_NAME = COOKIE;

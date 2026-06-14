@@ -19,6 +19,7 @@ export async function getTournaments(organizerId?: string) {
     include: {
       organizer: { select: { name: true } },
       _count: { select: { registrations: true, matches: true } },
+      registrations: { where: { status: "APPROVED" }, select: { id: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -174,6 +175,7 @@ export async function getOpenTournaments(city?: string) {
     include: {
       organizer: { select: { name: true } },
       _count: { select: { registrations: true } },
+      registrations: { where: { status: "APPROVED" }, select: { id: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -496,11 +498,107 @@ export async function saveGeneratedFixtures(
       status: "SCHEDULED",
     })),
   });
+  // Fikstür oluşturulunca turnuva otomatik "Devam Ediyor" olur
+  await prisma.tournament.update({
+    where: { id: tournamentId },
+    data: { status: "ACTIVE" },
+  });
   revalidatePath(`/organizer/tournaments/${tournamentId}/manage`);
   revalidatePath(`/organizer/tournaments/${tournamentId}`);
   revalidatePath(`/organizer/tournaments/${tournamentId}/fixture`);
   revalidatePath(`/captain/schedule`);
   revalidatePath(`/captain/tournaments`);
+}
+
+// ─── Eleme maçı oluştur ───────────────────────────────────────
+export async function generateKnockoutFixtures(
+  tournamentId: string,
+  fixtures: {
+    homeTeamId: string;
+    awayTeamId: string;
+    round: string;
+    date: string | null;
+    time: string | null;
+  }[]
+) {
+  const session = await getSession();
+  if (!session) throw new Error("Yetkisiz.");
+  const rounds = [...new Set(fixtures.map((f) => f.round))];
+  await prisma.match.deleteMany({
+    where: { tournamentId, groupId: null, round: { in: rounds }, homeScore: null },
+  });
+  await prisma.match.createMany({
+    data: fixtures.map((f) => ({
+      tournamentId,
+      homeTeamId: f.homeTeamId,
+      awayTeamId: f.awayTeamId,
+      round: f.round,
+      date: f.date ? new Date(f.date) : null,
+      time: f.time,
+      status: "SCHEDULED" as const,
+    })),
+  });
+  revalidatePath(`/organizer/tournaments/${tournamentId}/manage`);
+  revalidatePath(`/organizer/tournaments/${tournamentId}`);
+  revalidatePath(`/admin/tournaments/${tournamentId}`);
+  revalidatePath(`/captain/tournaments`);
+}
+
+// ─── Turnuvayı tamamla ────────────────────────────────────────
+export async function completeTournament(id: string) {
+  const session = await getSession();
+  if (!session) throw new Error("Yetkisiz.");
+  await prisma.tournament.update({ where: { id }, data: { status: "COMPLETED" } });
+  revalidatePath(`/organizer/tournaments/${id}/manage`);
+  revalidatePath(`/organizer/tournaments/${id}`);
+  revalidatePath(`/organizer/tournaments`);
+  revalidatePath(`/captain/tournaments`);
+}
+
+// ─── Takım turnuva istatistikleri ────────────────────────────
+export async function getTeamTournamentStats(tournamentId: string, teamId: string) {
+  const [matches, team, registration, tournament] = await Promise.all([
+    prisma.match.findMany({
+      where: {
+        tournamentId,
+        OR: [{ homeTeamId: teamId }, { awayTeamId: teamId }],
+      },
+      include: {
+        homeTeam:    { select: { id: true, name: true } },
+        awayTeam:    { select: { id: true, name: true } },
+        group:       { select: { name: true } },
+        goals: {
+          include: { player: { select: { id: true, name: true, number: true } } },
+          orderBy: { minute: "asc" },
+        },
+        assists: {
+          include: { player: { select: { id: true, name: true, number: true } } },
+          orderBy: { minute: "asc" },
+        },
+        cards: {
+          include: { player: { select: { id: true, name: true, number: true } } },
+          orderBy: { minute: "asc" },
+        },
+      },
+      orderBy: { date: "asc" },
+    }),
+    prisma.team.findUnique({
+      where: { id: teamId },
+      include: {
+        players: { orderBy: [{ number: "asc" }, { name: "asc" }] },
+        captain: { select: { name: true } },
+      },
+    }),
+    prisma.teamRegistration.findFirst({
+      where: { teamId, tournamentId },
+      include: { groupTeam: { include: { group: true } } },
+    }),
+    prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { id: true, name: true, winPoints: true },
+    }),
+  ]);
+  return { matches, team, registration, tournament };
 }
 
 // ─── Fikstür tarih/saat güncelle ──────────────────────────────

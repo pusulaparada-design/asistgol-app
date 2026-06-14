@@ -129,7 +129,7 @@ export default function TeamStatsClient({
     <div className="min-h-screen bg-[#F4F6F9]">
 
       {/* ── HEADER ── */}
-      <div className="bg-[#0F1F47] text-white px-6 py-6">
+      <div className="bg-[#0F1F47] text-white px-4 sm:px-6 py-5 sm:py-6">
         <div className="max-w-5xl mx-auto">
           <Link href={backHref} className="inline-flex items-center gap-1.5 text-white/60 hover:text-white text-sm mb-4 transition-colors">
             <ArrowLeft size={15} /> Turnuvaya Dön
@@ -168,7 +168,7 @@ export default function TeamStatsClient({
           </div>
 
           {/* Özet stat şeridi */}
-          <div className="mt-5 grid grid-cols-4 sm:grid-cols-8 gap-3">
+          <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
             {[
               { label: "Maç",    val: played },
               { label: "Galibiyet", val: wins },
@@ -189,7 +189,7 @@ export default function TeamStatsClient({
       </div>
 
       {/* ── İÇERİK ── */}
-      <div className="max-w-5xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
         {/* Özet Kartlar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -278,14 +278,14 @@ export default function TeamStatsClient({
                 return (
                   <div key={m.id}>
                     {/* Tek flex satır — olaylar takım sütununun içinde */}
-                    <div className="flex items-start gap-3 px-5 py-3.5">
+                    <div className="flex items-start gap-2 sm:gap-3 px-3 sm:px-5 py-3">
                       {/* Tarih */}
-                      <div className="w-24 shrink-0 pt-0.5">
-                        <div className="text-xs text-[#9CA3AF]">{fmt(m.date)}</div>
+                      <div className="w-14 sm:w-24 shrink-0 pt-0.5">
+                        <div className="text-xs text-[#9CA3AF] leading-tight">{fmt(m.date)}</div>
                         {m.time && <div className="text-xs text-[#6B7280]">{m.time}</div>}
                       </div>
-                      {/* EV/DEP */}
-                      <div className="w-10 shrink-0 pt-0.5">
+                      {/* EV/DEP — hidden on mobile */}
+                      <div className="hidden sm:block w-10 shrink-0 pt-0.5">
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isHome ? "bg-[#EFF6FF] text-[#3B82F6]" : "bg-[#F4F6F9] text-[#6B7280]"}`}>
                           {isHome ? "EV" : "DEP"}
                         </span>
@@ -296,9 +296,9 @@ export default function TeamStatsClient({
                         {hasHomeEvents && <div className="mt-2">{renderTeamEvents(homeGoals, homeAssists, homeCards, true)}</div>}
                       </div>
                       {/* Skor */}
-                      <div className="w-20 shrink-0 text-center pt-0.5">
+                      <div className="w-16 sm:w-20 shrink-0 text-center pt-0.5">
                         {played
-                          ? <span className="font-mono font-extrabold text-base text-[#111827]">{m.homeScore} – {m.awayScore}</span>
+                          ? <span className="font-mono font-extrabold text-sm sm:text-base text-[#111827]">{m.homeScore} – {m.awayScore}</span>
                           : <span className="text-sm text-[#D1D5DB]">vs</span>}
                       </div>
                       {/* Dep takım adı + olayları */}
@@ -309,7 +309,7 @@ export default function TeamStatsClient({
                       {/* Sonuç + Grup */}
                       <div className="flex items-center gap-2 shrink-0 pt-0.5">
                         {result && (
-                          <span className={`w-8 h-8 rounded-lg text-xs font-bold flex items-center justify-center ${RESULT_CLS[result]}`}>
+                          <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-bold flex items-center justify-center ${RESULT_CLS[result]}`}>
                             {RESULT_LABEL[result]}
                           </span>
                         )}

@@ -75,6 +75,18 @@ export default function TeamDetailClient({ team }: { team: Team }) {
 
   const handleAdd = () => {
     if (!newName.trim()) { setAddError("Oyuncu adı zorunludur."); return; }
+    if (newNumber) {
+      const num = Number(newNumber);
+      if (!Number.isInteger(num) || num < 1 || num > 99) {
+        setAddError("Forma numarası 1-99 arasında olmalıdır.");
+        return;
+      }
+      const duplicate = players.find(p => p.number === num);
+      if (duplicate) {
+        setAddError(`${num} numarası zaten ${duplicate.name} tarafından kullanılıyor.`);
+        return;
+      }
+    }
     setAddError("");
     startTransition(async () => {
       try {

@@ -4,9 +4,9 @@ import TournamentDetailClient from "@/components/tournament/TournamentDetailClie
 
 export const dynamic = "force-dynamic";
 
-export default async function OrganizerTournamentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminTournamentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const tournament = await getTournament(id);
   if (!tournament) notFound();
-  return <TournamentDetailClient tournament={tournament} isOrganizer={true} />;
+  return <TournamentDetailClient tournament={tournament} isOrganizer={false} basePath="/admin/tournaments" />;
 }

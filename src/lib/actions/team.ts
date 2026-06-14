@@ -125,6 +125,8 @@ export async function registerTeamToTournament(teamId: string, tournamentId: str
   }
 
   revalidatePath("/captain/registrations");
+  revalidatePath("/captain/tournaments");
+  revalidatePath("/captain");
   return reg;
 }
 
@@ -135,6 +137,11 @@ export async function addPlayerToTeam(teamId: string, data: { name: string; numb
 
   const team = await prisma.team.findUnique({ where: { id: teamId, captainId: session.userId } });
   if (!team) throw new Error("Takım bulunamadı.");
+
+  if (data.number != null) {
+    const existing = await prisma.player.findFirst({ where: { teamId, number: data.number } });
+    if (existing) throw new Error(`${data.number} numarası zaten ${existing.name} tarafından kullanılıyor.`);
+  }
 
   const player = await prisma.player.create({
     data: { teamId, name: data.name.trim(), number: data.number },

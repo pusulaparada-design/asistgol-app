@@ -21,16 +21,15 @@ export async function middleware(request: NextRequest) {
   try {
     const { payload } = await jwtVerify(token, SECRET);
     const role = payload.role as string;
+    const home = role === "ADMIN" ? "/admin" : role === "ORGANIZER" ? "/organizer" : "/captain";
 
-    // Rol tabanlı yetki kontrolü
-    if (pathname.startsWith("/admin") && role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-    if (pathname.startsWith("/organizer") && role !== "ORGANIZER" && role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-    if (pathname.startsWith("/captain") && role !== "CAPTAIN" && role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/login", request.url));
+    // Sıkı rol tabanlı yetki kontrolü — kimse kimsenin alanına giremez.
+    // Rol kendi prefix'i dışına çıkarsa kendi paneline geri yönlendirilir.
+    const areas: Record<string, string> = { ADMIN: "/admin", ORGANIZER: "/organizer", CAPTAIN: "/captain" };
+    for (const [r, prefix] of Object.entries(areas)) {
+      if (pathname.startsWith(prefix) && role !== r) {
+        return NextResponse.redirect(new URL(home, request.url));
+      }
     }
 
     return NextResponse.next();

@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   MapPin, Calendar, Trophy, Users, Swords, BarChart2,
-  CheckCircle, GitBranch, Settings2,
+  GitBranch, Settings2, Info,
   ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Card, CardHeader, StatusBadge } from "@/components/ui/PageShell";
 import { BracketView } from "@/components/tournament/BracketView";
+import { MatchDetailModal } from "@/components/tournament/MatchDetailModal";
 import type { getTournament } from "@/lib/actions/tournament";
 import type { getMyTeams } from "@/lib/actions/team";
 
@@ -105,12 +106,18 @@ function calcStandings(
 }
 
 const TABS = [
+  { key: "bilgi",      label: "Bilgi & Şartlar", icon: Info    },
   { key: "gruplar",    label: "Gruplar",       icon: Users     },
   { key: "eleme",      label: "Eleme Aşaması", icon: GitBranch },
   { key: "maclar",     label: "Maçlar",        icon: Swords    },
   { key: "istatistik", label: "İstatistikler", icon: BarChart2 },
   { key: "takimlar",   label: "Takımlar",      icon: Users     },
 ] as const;
+
+const MATCH_FORMAT_LABELS: Record<string, string> = {
+  SINGLE: "Tek Maç",
+  DOUBLE: "Çift Maç (Rövanşlı)",
+};
 type TabKey = typeof TABS[number]["key"];
 
 export default function TournamentDetailClient({
@@ -127,6 +134,7 @@ export default function TournamentDetailClient({
   const teamStatsBase = basePath ?? (isOrganizer ? "/organizer/tournaments" : "/captain/tournaments");
   const [tab, setTab] = useState<TabKey>("gruplar");
   const [activeGroup, setActiveGroup] = useState(t.groups[0]?.id ?? "");
+  const [detailMatch, setDetailMatch] = useState<TMatch | null>(null);
 
   const s              = effectiveStatus(t);
   const approvedRegs   = t.registrations.filter(r => r.status === "APPROVED");
@@ -162,7 +170,7 @@ export default function TournamentDetailClient({
 
       {/* ── HEADER + TAB BAR (sticky) ── */}
       <div className="sticky top-0 z-30">
-        <div className="bg-[#0F1F47] text-white px-6 py-6">
+        <div className="bg-[#0F1F47] text-white px-4 sm:px-6 py-5 sm:py-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
@@ -237,11 +245,59 @@ export default function TournamentDetailClient({
       </div>
 
       {/* ── İÇERİK ── */}
-      <div className="max-w-6xl mx-auto px-6 py-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <div className="grid gap-6 grid-cols-1">
 
           {/* ANA İÇERİK */}
           <div className="space-y-5">
+
+            {/* BİLGİ & ŞARTLAR */}
+            {tab === "bilgi" && (() => {
+              const specs: { label: string; value: React.ReactNode }[] = [
+                { label: "Format", value: FORMAT_LABELS[t.format] ?? t.format },
+                { label: "Maç Formatı", value: MATCH_FORMAT_LABELS[t.matchFormat] ?? t.matchFormat },
+                { label: "Kontenjan", value: `${t.maxTeams} takım` },
+                { label: "Katılım Ücreti", value: t.fee != null ? `${t.fee.toLocaleString("tr-TR")} ₺` : "Ücretsiz" },
+                { label: "Son Başvuru Tarihi", value: fmtLong(t.deadline) },
+                { label: "Başlangıç", value: fmtLong(t.startDate) },
+                { label: "Bitiş", value: fmtLong(t.endDate) },
+                { label: "Şehir / Saha", value: t.venue ? `${t.city} · ${t.venue}` : t.city },
+                { label: "Ödül", value: t.prize || "—" },
+                { label: "Galibiyet Puanı", value: t.winPoints },
+                { label: "Sarı Kart Limiti", value: t.yellowCardLimit },
+                { label: "Uzatma", value: t.extraTime ? "Var" : "Yok" },
+                { label: "3.'lük Maçı", value: t.thirdPlace ? "Var" : "Yok" },
+              ];
+              return (
+                <div className="space-y-5">
+                  <Card>
+                    <CardHeader title="Turnuva Bilgileri & Katılım Şartları" subtitle={`Organizatör: ${t.organizer.name}`} />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-[#F3F4F6]">
+                      {specs.map(sp => (
+                        <div key={sp.label} className="bg-white px-5 py-3">
+                          <div className="text-xs text-[#9CA3AF] mb-0.5">{sp.label}</div>
+                          <div className="text-sm font-semibold text-[#111827]">{sp.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+
+                  {t.description && (
+                    <Card>
+                      <CardHeader title="Açıklama" />
+                      <p className="px-5 py-4 text-sm text-[#374151] whitespace-pre-wrap leading-relaxed">{t.description}</p>
+                    </Card>
+                  )}
+
+                  {t.rules && (
+                    <Card>
+                      <CardHeader title="Turnuva Kuralları" />
+                      <p className="px-5 py-4 text-sm text-[#374151] whitespace-pre-wrap leading-relaxed">{t.rules}</p>
+                    </Card>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* GRUPLAR */}
             {tab === "gruplar" && (
@@ -283,7 +339,7 @@ export default function TournamentDetailClient({
                                   const homeWin  = isPlayed && m.homeScore! > m.awayScore!;
                                   const awayWin  = isPlayed && m.awayScore! > m.homeScore!;
                                   return (
-                                    <div key={m.id} className="flex items-center gap-3 px-5 py-3 flex-wrap sm:flex-nowrap">
+                                    <div key={m.id} onClick={() => setDetailMatch(m)} className="flex items-center gap-3 px-5 py-3 flex-wrap sm:flex-nowrap cursor-pointer hover:bg-[#F8FAFC] transition-colors">
                                       <div className="w-32 shrink-0">
                                         <div className="text-xs text-[#9CA3AF]">{m.date ? fmt(m.date) : <span className="text-[#D1D5DB]">—</span>}</div>
                                         {m.time && <div className="text-xs font-medium text-[#6B7280]">{m.time}</div>}
@@ -318,7 +374,15 @@ export default function TournamentDetailClient({
             {tab === "eleme" && (
               <Card>
                 <CardHeader title="Eleme Aşaması" subtitle="Knockout tabelası" />
-                <div className="p-4"><BracketView matches={t.matches} /></div>
+                <div className="p-4">
+                  <BracketView
+                    matches={t.matches}
+                    groups={t.groups}
+                    advanceCount={t.advanceCount ?? 0}
+                    winPoints={t.winPoints}
+                    onMatchClick={setDetailMatch}
+                  />
+                </div>
               </Card>
             )}
 
@@ -343,7 +407,7 @@ export default function TournamentDetailClient({
                         const homeWin  = isPlayed && m.homeScore! > m.awayScore!;
                         const awayWin  = isPlayed && m.awayScore! > m.homeScore!;
                         return (
-                          <div key={m.id} className="flex items-center gap-3 px-5 py-3 flex-wrap sm:flex-nowrap">
+                          <div key={m.id} onClick={() => setDetailMatch(m)} className="flex items-center gap-3 px-5 py-3 flex-wrap sm:flex-nowrap cursor-pointer hover:bg-[#F8FAFC] transition-colors">
                             <div className="w-36 shrink-0 text-xs text-[#9CA3AF]">{fmtLong(m.date)}</div>
                             <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${contextVariant(m)}`}>{matchContext(m)}</span>
                             <div className="flex-1 grid grid-cols-3 items-center gap-2 min-w-0">
@@ -435,6 +499,14 @@ export default function TournamentDetailClient({
 
         </div>
       </div>
+
+      {detailMatch && (
+        <MatchDetailModal
+          match={detailMatch}
+          tournament={t}
+          onClose={() => setDetailMatch(null)}
+        />
+      )}
     </div>
   );
 }
