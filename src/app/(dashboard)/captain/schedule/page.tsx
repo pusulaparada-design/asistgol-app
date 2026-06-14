@@ -7,9 +7,6 @@ function fmtDay(d: Date) {
   return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
 }
 
-function fmtTime(d: Date) {
-  return d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-}
 
 function getResult(match: { homeScore: number | null; awayScore: number | null }, myTeamId: string, homeTeamId: string) {
   if (match.homeScore === null) return null;
@@ -74,7 +71,7 @@ export default async function SchedulePage() {
               <div key={m.id} className={`flex items-center gap-4 px-5 py-4 ${m.status === "LIVE" ? "bg-[#FEF2F2]/20" : ""}`}>
                 <div className="w-12 text-right shrink-0">
                   {m.date && <div className="text-xs font-semibold text-[#374151]">{fmtDay(m.date)}</div>}
-                  {m.date && <div className="text-xs text-[#9CA3AF] font-mono">{fmtTime(m.date)}</div>}
+                  {m.time && <div className="text-xs text-[#9CA3AF] font-mono">{m.time}</div>}
                 </div>
                 <div className={`w-2 h-2 rounded-full shrink-0 ${m.status === "LIVE" ? "bg-[#EF4444] animate-pulse" : "bg-[#D1D5DB]"}`} />
                 <div className="flex-1">
