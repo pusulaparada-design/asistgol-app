@@ -1,13 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { getUnreadCount } from "@/lib/actions/notification";
 
 export function NotificationBadge({ active }: { active: boolean }) {
   const [count, setCount] = useState(0);
+  const pathname = usePathname();
 
   useEffect(() => {
     getUnreadCount().then(setCount).catch(() => {});
-  }, []);
+  }, [pathname]);
 
   if (count === 0) return null;
   return (
