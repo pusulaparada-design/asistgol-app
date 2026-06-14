@@ -221,21 +221,55 @@ export default function TeamStatsClient({
           ) : (
             <div className="divide-y divide-[#F3F4F6]">
               {matches.map(m => {
-                const isHome   = m.homeTeamId === teamId;
-                const opponent = isHome ? m.awayTeam.name : m.homeTeam.name;
-                const played   = m.homeScore !== null;
-                const myScore  = played ? (isHome ? m.homeScore! : m.awayScore!) : null;
-                const opScore  = played ? (isHome ? m.awayScore! : m.homeScore!) : null;
-                const result   = played ? matchResult(m, teamId) : null;
+                const isHome = m.homeTeamId === teamId;
+                const played = m.homeScore !== null;
+                const result = played ? matchResult(m, teamId) : null;
+                const hasEvents = played && (m.goals.length + m.assists.length + m.cards.length) > 0;
 
-                const myGoals    = m.goals.filter(g => !g.ownGoal && g.teamId === teamId);
-                const opOwnGoals = m.goals.filter(g => g.ownGoal && g.teamId !== teamId);
-                const myAssists  = m.assists.filter(a => team.players.some(p => p.id === a.player.id));
-                const myCards    = m.cards.filter(c => team.players.some(p => p.id === c.player.id));
-                const opGoals    = m.goals.filter(g => !g.ownGoal && g.teamId !== teamId);
-                const myOwnGoals = m.goals.filter(g => g.ownGoal && g.teamId === teamId);
+                // Her oyuncunun hangi takımda olduğunu belirle (lineup + gol eventlerinden)
+                const playerTeamMap: Record<string, string> = {};
+                for (const pid of m.homeLineup) playerTeamMap[pid] = m.homeTeamId;
+                for (const pid of m.awayLineup) playerTeamMap[pid] = m.awayTeamId;
+                for (const g of m.goals) playerTeamMap[g.player.id] = g.teamId;
 
-                const hasEvents = played && (myGoals.length + opOwnGoals.length + myAssists.length + myCards.length + opGoals.length + myOwnGoals.length) > 0;
+                const homeGoals   = m.goals.filter(g => g.teamId === m.homeTeamId);
+                const awayGoals   = m.goals.filter(g => g.teamId === m.awayTeamId);
+                const homeAssists = m.assists.filter(a => playerTeamMap[a.player.id] === m.homeTeamId);
+                const awayAssists = m.assists.filter(a => playerTeamMap[a.player.id] === m.awayTeamId);
+                const homeCards   = m.cards.filter(c => playerTeamMap[c.player.id] === m.homeTeamId);
+                const awayCards   = m.cards.filter(c => playerTeamMap[c.player.id] === m.awayTeamId);
+
+                const renderEvents = (
+                  goals: typeof m.goals,
+                  assists: typeof m.assists,
+                  cards: typeof m.cards,
+                ) => (
+                  <div className="space-y-1.5">
+                    {goals.map(g => (
+                      <div key={g.id} className="flex items-center gap-2 text-xs text-[#374151]">
+                        <span className="text-base">⚽</span>
+                        <span className="font-medium">{g.player.name}</span>
+                        {g.ownGoal && <span className="text-[#9CA3AF]">(kendi kalesine)</span>}
+                        {g.minute && <span className="text-[#9CA3AF] ml-auto">{g.minute}'</span>}
+                      </div>
+                    ))}
+                    {assists.map(a => (
+                      <div key={a.id} className="flex items-center gap-2 text-xs text-[#6B7280]">
+                        <span className="text-base">🎯</span>
+                        <span className="font-medium">{a.player.name}</span>
+                        <span className="text-[#9CA3AF]">asist</span>
+                        {a.minute && <span className="text-[#9CA3AF] ml-auto">{a.minute}'</span>}
+                      </div>
+                    ))}
+                    {cards.map(c => (
+                      <div key={c.id} className="flex items-center gap-2 text-xs text-[#374151]">
+                        <div className={`w-3 h-4 rounded-sm shrink-0 ${c.type === "YELLOW" ? "bg-[#F59E0B]" : "bg-[#EF4444]"}`} />
+                        <span className="font-medium">{c.player.name}</span>
+                        {c.minute && <span className="text-[#9CA3AF] ml-auto">{c.minute}'</span>}
+                      </div>
+                    ))}
+                  </div>
+                );
 
                 return (
                   <div key={m.id}>
@@ -275,60 +309,19 @@ export default function TeamStatsClient({
                           {m.group.name}
                         </span>
                       )}
-
                     </div>
 
                     {/* Maç olayları */}
                     {hasEvents && (
                       <div className="bg-[#F8FAFC] border-t border-[#F3F4F6] px-5 py-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                          {/* Biz */}
                           <div>
-                            <div className="text-xs font-bold text-[#374151] mb-2 uppercase tracking-wide">{team.name}</div>
-                            <div className="space-y-1.5">
-                              {[...myGoals, ...opOwnGoals].sort((a, b) => (a.minute ?? 99) - (b.minute ?? 99)).map(g => (
-                                <div key={g.id} className="flex items-center gap-2 text-xs text-[#374151]">
-                                  <span className="text-base">⚽</span>
-                                  <span className="font-medium">{g.player.name}</span>
-                                  {g.ownGoal && <span className="text-[#9CA3AF]">(kendi kalesine)</span>}
-                                  {g.minute && <span className="text-[#9CA3AF] ml-auto">{g.minute}'</span>}
-                                </div>
-                              ))}
-                              {myAssists.map(a => (
-                                <div key={a.id} className="flex items-center gap-2 text-xs text-[#6B7280]">
-                                  <span className="text-base">🎯</span>
-                                  <span className="font-medium">{a.player.name}</span>
-                                  <span className="text-[#9CA3AF]">asist</span>
-                                  {a.minute && <span className="text-[#9CA3AF] ml-auto">{a.minute}'</span>}
-                                </div>
-                              ))}
-                              {myCards.map(c => (
-                                <div key={c.id} className="flex items-center gap-2 text-xs text-[#374151]">
-                                  <div className={`w-3 h-4 rounded-sm shrink-0 ${c.type === "YELLOW" ? "bg-[#F59E0B]" : "bg-[#EF4444]"}`} />
-                                  <span className="font-medium">{c.player.name}</span>
-                                  {c.minute && <span className="text-[#9CA3AF] ml-auto">{c.minute}'</span>}
-                                </div>
-                              ))}
-                              {myGoals.length === 0 && opOwnGoals.length === 0 && myAssists.length === 0 && myCards.length === 0 && (
-                                <p className="text-xs text-[#9CA3AF]">Kayıtlı olay yok</p>
-                              )}
-                            </div>
+                            <div className="text-xs font-bold text-[#374151] mb-2 uppercase tracking-wide">{m.homeTeam.name}</div>
+                            {renderEvents(homeGoals, homeAssists, homeCards)}
                           </div>
-
-                          {/* Rakip */}
                           <div>
-                            <div className="text-xs font-bold text-[#374151] mb-2 uppercase tracking-wide">{opponent}</div>
-                            <div className="space-y-1.5">
-                              {[...opGoals, ...myOwnGoals].sort((a, b) => (a.minute ?? 99) - (b.minute ?? 99)).map(g => (
-                                <div key={g.id} className="flex items-center gap-2 text-xs text-[#374151]">
-                                  <span className="text-base">⚽</span>
-                                  <span className="font-medium">{g.player.name}</span>
-                                  {g.ownGoal && <span className="text-[#9CA3AF]">(kendi kalesine)</span>}
-                                  {g.minute && <span className="text-[#9CA3AF] ml-auto">{g.minute}'</span>}
-                                </div>
-                              ))}
-                            </div>
+                            <div className="text-xs font-bold text-[#374151] mb-2 uppercase tracking-wide">{m.awayTeam.name}</div>
+                            {renderEvents(awayGoals, awayAssists, awayCards)}
                           </div>
                         </div>
                       </div>
