@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Edit2, Play, Trophy } from "lucide-react";
 import { PageContent, PageHeader, Card, StatusBadge } from "@/components/ui/PageShell";
 import { getTournamentMatches } from "@/lib/actions/tournament";
@@ -33,7 +34,7 @@ export default function MatchesClient({
   matches: Matches;
 }) {
   const [selected, setSelected] = useState<TMatch | null>(null);
-  const [, startRefresh] = useTransition();
+  const router = useRouter();
 
   const played    = matches.filter(m => m.status === "PLAYED");
   const live      = matches.filter(m => m.status === "LIVE");
@@ -141,7 +142,7 @@ export default function MatchesClient({
         <MatchModal
           match={selected}
           onClose={() => setSelected(null)}
-          onSaved={() => startRefresh(async () => {})}
+          onSaved={() => router.refresh()}
         />
       )}
     </PageContent>

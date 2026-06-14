@@ -261,16 +261,17 @@ export async function startMatch(data: {
   const session = await getSession();
   if (!session) throw new Error("Yetkisiz.");
 
-  await prisma.match.update({
+  const match = await prisma.match.update({
     where: { id: data.matchId },
     data: {
       status: "LIVE",
       homeLineup: data.homeLineup,
       awayLineup: data.awayLineup,
     },
+    select: { tournamentId: true },
   });
 
-  revalidatePath(`/organizer/tournaments`);
+  revalidatePath(`/organizer/tournaments/${match.tournamentId}/matches`);
 }
 
 // ─── Kayıt listesi + oyuncular ────────────────────────────────
