@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Edit2, Play, Trophy } from "lucide-react";
 import { PageContent, PageHeader, Card, StatusBadge } from "@/components/ui/PageShell";
 import { getTournamentMatches } from "@/lib/actions/tournament";
@@ -35,13 +34,11 @@ export default function MatchesClient({
 }) {
   const [matches, setMatches] = useState(initialMatches);
   const [selected, setSelected] = useState<TMatch | null>(null);
-  const router = useRouter();
 
   function handleSaved({ matchId, status, homeScore, awayScore }: SaveResult) {
     setMatches(prev => prev.map(m =>
       m.id === matchId ? { ...m, status, homeScore, awayScore } : m
     ));
-    router.refresh();
   }
 
   const played    = matches.filter(m => m.status === "PLAYED");
