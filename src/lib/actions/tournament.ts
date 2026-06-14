@@ -252,6 +252,27 @@ export async function saveMatchScore(data: {
   return { ok: true };
 }
 
+// ─── Maçı başlat (SCHEDULED → LIVE) ──────────────────────────
+export async function startMatch(data: {
+  matchId: string;
+  homeLineup: string[];
+  awayLineup: string[];
+}) {
+  const session = await getSession();
+  if (!session) throw new Error("Yetkisiz.");
+
+  await prisma.match.update({
+    where: { id: data.matchId },
+    data: {
+      status: "LIVE",
+      homeLineup: data.homeLineup,
+      awayLineup: data.awayLineup,
+    },
+  });
+
+  revalidatePath(`/organizer/tournaments`);
+}
+
 // ─── Kayıt listesi + oyuncular ────────────────────────────────
 export async function getTournamentRegistrations(tournamentId: string) {
   return prisma.teamRegistration.findMany({

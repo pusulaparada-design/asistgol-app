@@ -199,8 +199,10 @@ model Match {
   date   DateTime?
   time   String?
   venue  String?
-  status MatchStatus @default(SCHEDULED)
-  notes  String?
+  status     MatchStatus @default(SCHEDULED)
+  notes      String?
+  homeLineup String[]    @default([])
+  awayLineup String[]    @default([])
 
   tournamentId String
   groupId      String?

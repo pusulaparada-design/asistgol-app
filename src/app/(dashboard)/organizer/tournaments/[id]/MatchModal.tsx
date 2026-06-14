@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from "react";
 import { CheckCircle, Trash2 } from "lucide-react";
-import { saveMatchScore, getTournamentMatches } from "@/lib/actions/tournament";
+import { saveMatchScore, startMatch, getTournamentMatches } from "@/lib/actions/tournament";
 
 type Matches = Awaited<ReturnType<typeof getTournamentMatches>>;
 export type TMatch = Matches[number];
@@ -87,9 +87,10 @@ export default function MatchModal({
   onSaved?: () => void;
 }) {
   const [tab, setTab] = useState<"kadro" | "olaylar">("kadro");
-  const [lineup, setLineup] = useState<{ home: Set<string>; away: Set<string> }>({
-    home: new Set(), away: new Set(),
-  });
+  const [lineup, setLineup] = useState<{ home: Set<string>; away: Set<string> }>(() => ({
+    home: new Set(match.homeLineup ?? []),
+    away: new Set(match.awayLineup ?? []),
+  }));
   const [events, setEvents] = useState<MatchEvent[]>(() => {
     const goals: MatchEvent[] = match.goals.map(g => ({
       id: uid(), kind: "goal",
@@ -173,12 +174,29 @@ export default function MatchModal({
     return active.size > 0 ? all.filter(p => !active.has(p.id)) : all;
   }
 
-  function save(finished: boolean) {
+  function handleStart() {
+    setError("");
+    startTransition(async () => {
+      try {
+        await startMatch({
+          matchId: match.id,
+          homeLineup: Array.from(lineup.home),
+          awayLineup: Array.from(lineup.away),
+        });
+        onSaved?.();
+        onClose();
+      } catch {
+        setError("Kaydedilemedi, tekrar deneyin.");
+      }
+    });
+  }
+
+  function handleFinish() {
     setError("");
     startTransition(async () => {
       try {
         await saveMatchScore({
-          matchId: match.id, homeScore, awayScore, finished,
+          matchId: match.id, homeScore, awayScore, finished: true,
           goals: events.filter(e => e.kind === "goal").map(e => ({
             teamId: e.teamId, playerId: e.playerId,
             minute: e.minute ? parseInt(e.minute) : null,
@@ -450,16 +468,25 @@ export default function MatchModal({
               className="py-2.5 px-4 text-sm font-medium text-[#6B7280] border border-[#E5E7EB] rounded-xl hover:bg-white transition-colors bg-white disabled:opacity-40">
               İptal
             </button>
-            <button onClick={() => save(false)} disabled={pending}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-[#2563EB] text-white rounded-xl hover:bg-[#1D4ED8] transition-colors disabled:opacity-50">
-              <CheckCircle size={15} />
-              {pending ? "Kaydediliyor..." : `Kaydet  ${homeScore} – ${awayScore}`}
-            </button>
-            <button onClick={() => save(true)} disabled={pending}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-[#059669] text-white rounded-xl hover:bg-[#047857] transition-colors disabled:opacity-50">
-              <CheckCircle size={15} />
-              {pending ? "Kaydediliyor..." : "Maç Bitti"}
-            </button>
+            {match.status === "SCHEDULED" ? (
+              <button
+                onClick={handleStart}
+                disabled={pending || !lineupReady}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-[#059669] text-white rounded-xl hover:bg-[#047857] transition-colors disabled:opacity-50"
+              >
+                <CheckCircle size={15} />
+                {pending ? "Başlatılıyor..." : lineupReady ? "Maçı Başlat" : `Kadroyu Tamamla (${lineup.home.size + lineup.away.size}/${MAX_LINEUP * 2})`}
+              </button>
+            ) : (
+              <button
+                onClick={handleFinish}
+                disabled={pending}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-[#2563EB] text-white rounded-xl hover:bg-[#1D4ED8] transition-colors disabled:opacity-50"
+              >
+                <CheckCircle size={15} />
+                {pending ? "Kaydediliyor..." : `Maçı Bitir  ${homeScore} – ${awayScore}`}
+              </button>
+            )}
           </div>
         </div>
       </div>

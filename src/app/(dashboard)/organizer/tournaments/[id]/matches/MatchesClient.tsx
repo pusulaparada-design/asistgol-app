@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Edit2, Trophy } from "lucide-react";
+import { Edit2, Play, CheckCircle2, Trophy } from "lucide-react";
 import { PageContent, PageHeader, Card, StatusBadge } from "@/components/ui/PageShell";
 import { getTournamentMatches } from "@/lib/actions/tournament";
 import MatchModal from "../MatchModal";
@@ -35,8 +35,9 @@ export default function MatchesClient({
   const [selected, setSelected] = useState<TMatch | null>(null);
   const [, startRefresh] = useTransition();
 
-  const played    = matches.filter(m => m.homeScore !== null);
-  const remaining = matches.filter(m => m.homeScore === null);
+  const played    = matches.filter(m => m.status === "PLAYED");
+  const live      = matches.filter(m => m.status === "LIVE");
+  const remaining = matches.filter(m => m.status === "SCHEDULED");
 
   const grouped = new Map<string, TMatch[]>();
   for (const m of matches) {
@@ -49,14 +50,15 @@ export default function MatchesClient({
     <PageContent>
       <PageHeader
         title="Skor Girişi"
-        subtitle={`${played.length} maç oynandı · ${remaining.length} kalan`}
+        subtitle={`${played.length} oynandı · ${live.length} devam ediyor · ${remaining.length} kalan`}
       />
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-3">
         {[
-          { label: "Toplam Maç",  val: matches.length,   color: "text-[#0F1F47]" },
-          { label: "Oynandı",     val: played.length,    color: "text-[#10B981]" },
-          { label: "Kalan",       val: remaining.length, color: "text-[#F59E0B]" },
+          { label: "Toplam",       val: matches.length,   color: "text-[#0F1F47]" },
+          { label: "Oynandı",      val: played.length,    color: "text-[#10B981]" },
+          { label: "Devam Ediyor", val: live.length,      color: "text-[#F59E0B]" },
+          { label: "Planlandı",    val: remaining.length, color: "text-[#6B7280]" },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-[#E5E7EB] p-4 text-center">
             <div className={`text-2xl font-extrabold ${s.color}`}>{s.val}</div>
@@ -76,7 +78,9 @@ export default function MatchesClient({
           </div>
           <div className="divide-y divide-[#F3F4F6]">
             {grpMatches.map(m => {
-              const isPlayed = m.homeScore !== null;
+              const isPlayed    = m.status === "PLAYED";
+              const isLive      = m.status === "LIVE";
+              const isScheduled = m.status === "SCHEDULED";
               return (
                 <div key={m.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-[#FAFAFA] transition-colors">
                   <div className="w-20 shrink-0 text-xs text-[#9CA3AF] leading-tight">
@@ -86,27 +90,40 @@ export default function MatchesClient({
                   <div className="w-20 text-center shrink-0">
                     {isPlayed
                       ? <span className="font-mono font-extrabold text-base text-[#111827]">{m.homeScore} – {m.awayScore}</span>
-                      : <span className="text-xs text-[#D1D5DB] font-mono">vs</span>
+                      : isLive
+                        ? <span className="font-mono font-extrabold text-base text-[#F59E0B]">{m.homeScore ?? 0} – {m.awayScore ?? 0}</span>
+                        : <span className="text-xs text-[#D1D5DB] font-mono">vs</span>
                     }
                   </div>
                   <div className="flex-1 text-sm font-semibold text-[#111827] truncate">{m.awayTeam.name}</div>
                   <div className="shrink-0 flex items-center gap-2">
                     <StatusBadge
-                      label={isPlayed ? "Oynandı" : "Planlandı"}
-                      variant={isPlayed ? "gray" : "blue"}
+                      label={isPlayed ? "Oynandı" : isLive ? "Devam Ediyor" : "Planlandı"}
+                      variant={isPlayed ? "gray" : isLive ? "gold" : "blue"}
                       dot={false}
                     />
-                    <button
-                      onClick={() => setSelected(m)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                        isPlayed
-                          ? "bg-[#F4F6F9] text-[#6B7280] hover:bg-[#E5E7EB]"
-                          : "bg-[#FEF3C7] text-[#D97706] hover:bg-[#FDE68A]"
-                      }`}
-                    >
-                      <Edit2 size={11} />
-                      {isPlayed ? "Düzenle" : "Gir"}
-                    </button>
+                    {isPlayed ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-[#ECFDF5] text-[#059669]">
+                        <CheckCircle2 size={11} />
+                        Bitti
+                      </span>
+                    ) : isLive ? (
+                      <button
+                        onClick={() => setSelected(m)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-[#EFF6FF] text-[#2563EB] hover:bg-[#DBEAFE] transition-colors"
+                      >
+                        <Edit2 size={11} />
+                        Düzenle
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setSelected(m)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-[#ECFDF5] text-[#059669] hover:bg-[#D1FAE5] transition-colors"
+                      >
+                        <Play size={11} />
+                        Başlat
+                      </button>
+                    )}
                   </div>
                 </div>
               );
