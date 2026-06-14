@@ -192,8 +192,8 @@ export default function MatchModal({
         });
         onSaved?.({ matchId: match.id, status: "LIVE", homeScore, awayScore });
         onClose();
-      } catch {
-        setError("Kaydedilemedi, tekrar deneyin.");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Kaydedilemedi.");
       }
     });
   }
@@ -217,8 +217,8 @@ export default function MatchModal({
         });
         onSaved?.({ matchId: match.id, status: "PLAYED", homeScore, awayScore });
         onClose();
-      } catch {
-        setError("Kaydedilemedi, tekrar deneyin.");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Kaydedilemedi.");
       }
     });
   }

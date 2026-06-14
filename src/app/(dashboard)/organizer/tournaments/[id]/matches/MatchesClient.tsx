@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Edit2, Play, Trophy } from "lucide-react";
 import { PageContent, PageHeader, Card, StatusBadge } from "@/components/ui/PageShell";
 import { getTournamentMatches } from "@/lib/actions/tournament";
@@ -26,7 +26,7 @@ function matchLabel(m: TMatch) {
 }
 
 export default function MatchesClient({
-  tournamentId: _tournamentId,
+  tournamentId,
   matches: initialMatches,
 }: {
   tournamentId: string;
@@ -34,11 +34,13 @@ export default function MatchesClient({
 }) {
   const [matches, setMatches] = useState(initialMatches);
   const [selected, setSelected] = useState<TMatch | null>(null);
+  const [, startRefresh] = useTransition();
 
-  function handleSaved({ matchId, status, homeScore, awayScore }: SaveResult) {
-    setMatches(prev => prev.map(m =>
-      m.id === matchId ? { ...m, status, homeScore, awayScore } : m
-    ));
+  function handleSaved(_result: SaveResult) {
+    startRefresh(async () => {
+      const fresh = await getTournamentMatches(tournamentId);
+      setMatches(fresh);
+    });
   }
 
   const played    = matches.filter(m => m.status === "PLAYED");
