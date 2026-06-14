@@ -353,6 +353,80 @@ export async function getGlobalLeaderboard() {
   return { topScorers, fairPlay };
 }
 
+// ─── Kaptanın takımlarının toplam istatistikleri ─────────────
+export async function getCaptainTeamsStats() {
+  const session = await getSession();
+  if (!session) throw new Error("Yetkisiz.");
+
+  const teams = await prisma.team.findMany({
+    where: { captainId: session.userId },
+    select: { id: true, name: true },
+  });
+  const teamIds = teams.map(t => t.id);
+  if (teamIds.length === 0) return [];
+
+  const [matches, goals, cards] = await Promise.all([
+    prisma.match.findMany({
+      where: {
+        OR: [{ homeTeamId: { in: teamIds } }, { awayTeamId: { in: teamIds } }],
+        homeScore: { not: null },
+      },
+      select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true },
+    }),
+    prisma.goal.findMany({
+      where: { teamId: { in: teamIds }, ownGoal: false },
+      select: { teamId: true, playerId: true },
+    }),
+    prisma.card.findMany({
+      where: { player: { teamId: { in: teamIds } } },
+      select: { type: true, player: { select: { teamId: true, name: true } } },
+    }),
+  ]);
+
+  // Oyuncu başına gol sayısı (kendi takım içi sıralama için)
+  const playerGoals: Record<string, { name: string; teamId: string; goals: number }> = {};
+  for (const g of goals) {
+    if (!playerGoals[g.playerId]) {
+      playerGoals[g.playerId] = { name: "", teamId: g.teamId, goals: 0 };
+    }
+    playerGoals[g.playerId].goals++;
+    playerGoals[g.playerId].teamId = g.teamId;
+  }
+
+  return teams.map(team => {
+    let played = 0, wins = 0, draws = 0, losses = 0, gf = 0, ga = 0, yellow = 0, red = 0;
+
+    for (const m of matches) {
+      const isHome = m.homeTeamId === team.id;
+      const isAway = m.awayTeamId === team.id;
+      if (!isHome && !isAway) continue;
+
+      const myScore = isHome ? m.homeScore! : m.awayScore!;
+      const opScore = isHome ? m.awayScore! : m.homeScore!;
+      played++; gf += myScore; ga += opScore;
+      if (myScore > opScore) wins++;
+      else if (myScore === opScore) draws++;
+      else losses++;
+    }
+
+    for (const c of cards) {
+      if (c.player.teamId !== team.id) continue;
+      if (c.type === "YELLOW") yellow++;
+      else red++;
+    }
+
+    const totalGoals = goals.filter(g => g.teamId === team.id).length;
+
+    return {
+      team,
+      played, wins, draws, losses,
+      gf, ga, gd: gf - ga,
+      points: wins * 3 + draws,
+      yellow, red, totalGoals,
+    };
+  });
+}
+
 // ─── Kaptanın maç takvimi ─────────────────────────────────────
 export async function getCaptainSchedule() {
   const session = await getSession();

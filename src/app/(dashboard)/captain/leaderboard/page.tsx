@@ -1,13 +1,60 @@
 export const dynamic = "force-dynamic";
 import { PageContent, PageHeader, Card, CardHeader } from "@/components/ui/PageShell";
-import { getGlobalLeaderboard } from "@/lib/actions/match";
+import { getGlobalLeaderboard, getCaptainTeamsStats } from "@/lib/actions/match";
 
 export default async function LeaderboardPage() {
-  const { topScorers, fairPlay } = await getGlobalLeaderboard().catch(() => ({ topScorers: [], fairPlay: [] }));
+  const [{ topScorers, fairPlay }, myTeamsStats] = await Promise.all([
+    getGlobalLeaderboard().catch(() => ({ topScorers: [], fairPlay: [] })),
+    getCaptainTeamsStats().catch(() => []),
+  ]);
 
   return (
     <PageContent>
-      <PageHeader title="Sıralamalar" subtitle="Golcüler ve fair play sıralaması" />
+      <PageHeader title="Sıralamalar" subtitle="Takım istatistikleri ve sıralamalar" />
+
+      {/* Takımlarımın istatistikleri */}
+      {myTeamsStats.length > 0 && (
+        <Card>
+          <CardHeader title="Takımlarımın İstatistikleri" subtitle="Tüm turnuvalarda toplam" />
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#E5E7EB]">
+                  {["Takım", "O", "G", "B", "M", "AG", "YG", "Av", "P", "Gol", "Sarı", "Kırm"].map(h => (
+                    <th key={h} className={`px-3 py-2.5 text-xs font-semibold text-[#9CA3AF] uppercase ${h === "Takım" ? "text-left" : "text-center"}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#F3F4F6]">
+                {myTeamsStats.map(s => (
+                  <tr key={s.team.id} className="hover:bg-[#FAFAFA] transition-colors">
+                    <td className="px-3 py-3 text-sm font-semibold text-[#111827]">{s.team.name}</td>
+                    <td className="px-3 py-3 text-center text-xs text-[#6B7280]">{s.played}</td>
+                    <td className="px-3 py-3 text-center text-xs text-[#059669] font-medium">{s.wins}</td>
+                    <td className="px-3 py-3 text-center text-xs text-[#6B7280]">{s.draws}</td>
+                    <td className="px-3 py-3 text-center text-xs text-[#DC2626] font-medium">{s.losses}</td>
+                    <td className="px-3 py-3 text-center text-xs text-[#6B7280]">{s.gf}</td>
+                    <td className="px-3 py-3 text-center text-xs text-[#6B7280]">{s.ga}</td>
+                    <td className="px-3 py-3 text-center text-xs font-medium text-[#374151]">{s.gd > 0 ? `+${s.gd}` : s.gd}</td>
+                    <td className="px-3 py-3 text-center text-sm font-bold text-[#111827]">{s.points}</td>
+                    <td className="px-3 py-3 text-center text-xs text-[#6B7280]">{s.totalGoals}</td>
+                    <td className="px-3 py-3 text-center">
+                      <span className="inline-flex items-center gap-1 text-xs text-[#D97706]">
+                        <div className="w-2.5 h-3.5 bg-[#F59E0B] rounded-sm shrink-0" />{s.yellow}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <span className="inline-flex items-center gap-1 text-xs text-[#DC2626]">
+                        <div className="w-2.5 h-3.5 bg-[#EF4444] rounded-sm shrink-0" />{s.red}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Top scorers */}
