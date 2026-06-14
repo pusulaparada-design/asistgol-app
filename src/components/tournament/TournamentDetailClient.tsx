@@ -4,14 +4,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   MapPin, Calendar, Trophy, Users, Swords, BarChart2,
-  CheckCircle, ArrowRight, GitBranch, Settings2,
+  CheckCircle, GitBranch, Settings2,
   ChevronDown, ChevronUp,
 } from "lucide-react";
-import { Card, CardHeader, ProgressBar, StatusBadge } from "@/components/ui/PageShell";
+import { Card, CardHeader, StatusBadge } from "@/components/ui/PageShell";
 import { BracketView } from "@/components/tournament/BracketView";
 import type { getTournament } from "@/lib/actions/tournament";
 import type { getMyTeams } from "@/lib/actions/team";
-import { registerTeamToTournament } from "@/lib/actions/team";
+
 
 type Tournament = NonNullable<Awaited<ReturnType<typeof getTournament>>>;
 type MyTeams    = Awaited<ReturnType<typeof getMyTeams>>;
@@ -128,14 +128,6 @@ export default function TournamentDetailClient({
   const [tab, setTab] = useState<TabKey>("gruplar");
   const [activeGroup, setActiveGroup] = useState(t.groups[0]?.id ?? "");
 
-  // Kayıt formu state (yalnızca kaptan)
-  const [registering, setRegistering] = useState(false);
-  const [registered, setRegistered] = useState(false);
-  const [selectedTeamId, setSelectedTeamId] = useState(myTeams?.[0]?.id ?? "");
-  const [note, setNote] = useState("");
-  const [regLoading, setRegLoading] = useState(false);
-  const [regError, setRegError] = useState("");
-
   const s              = effectiveStatus(t);
   const approvedRegs   = t.registrations.filter(r => r.status === "APPROVED");
   const pendingRegs    = t.registrations.filter(r => r.status === "PENDING");
@@ -145,12 +137,7 @@ export default function TournamentDetailClient({
   const totalRed       = t.matches.reduce((a, m) => a + m.cards.filter(c => c.type === "RED").length, 0);
   const totalGoals     = t.matches.reduce((a, m) => a + m.goals.length, 0);
 
-  const isFull         = approvedRegs.length >= t.maxTeams;
-  const canRegisterNow = !isOrganizer && t.status === "REGISTRATION" && !isFull;
-
-  const alreadyRegisteredIds = new Set(t.registrations.map(r => r.team.id));
-  const availableTeams       = (myTeams ?? []).filter(tm => !alreadyRegisteredIds.has(tm.id));
-  const myRegistration       = t.registrations.find(r => (myTeams ?? []).some(tm => tm.id === r.team.id));
+  const myRegistration = t.registrations.find(r => (myTeams ?? []).some(tm => tm.id === r.team.id));
 
   // İstatistikler
   const scorers: Record<string, { name: string; team: string; goals: number }> = {};
@@ -169,17 +156,6 @@ export default function TournamentDetailClient({
   }
   const topScorers = Object.values(scorers).sort((a, b) => b.goals - a.goals).slice(0, 10);
   const topCarders = Object.values(carders).sort((a, b) => (b.yellow + b.red * 2) - (a.yellow + a.red * 2)).slice(0, 10);
-
-  async function handleRegister() {
-    if (!selectedTeamId) { setRegError("Lütfen bir takım seçin."); return; }
-    setRegLoading(true); setRegError("");
-    try {
-      await registerTeamToTournament(selectedTeamId, t.id, note || undefined);
-      setRegistered(true);
-    } catch (e: unknown) {
-      setRegError(e instanceof Error ? e.message : "Bir hata oluştu.");
-    } finally { setRegLoading(false); }
-  }
 
   return (
     <div className="min-h-screen bg-[#F4F6F9]">
@@ -262,10 +238,10 @@ export default function TournamentDetailClient({
 
       {/* ── İÇERİK ── */}
       <div className="max-w-6xl mx-auto px-6 py-6">
-        <div className={`grid gap-6 ${!isOrganizer && (canRegisterNow || myRegistration) ? "grid-cols-1 xl:grid-cols-3" : "grid-cols-1"}`}>
+        <div className="grid gap-6 grid-cols-1">
 
           {/* ANA İÇERİK */}
-          <div className={!isOrganizer && (canRegisterNow || myRegistration) ? "xl:col-span-2 space-y-5" : "space-y-5"}>
+          <div className="space-y-5">
 
             {/* GRUPLAR */}
             {tab === "gruplar" && (
@@ -457,104 +433,6 @@ export default function TournamentDetailClient({
             )}
           </div>
 
-          {/* SAĞ PANEL — yalnızca kaptan ve kayıt açıkken */}
-          {!isOrganizer && (canRegisterNow || myRegistration) && (
-            <div className="space-y-5">
-              {canRegisterNow && !myRegistration && (
-                <Card>
-                  <div className="p-5">
-                    <div className="mb-4">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-[#6B7280]">Doluluk</span>
-                        <span className="font-semibold text-[#374151]">
-                          {t.maxTeams - approvedRegs.length} yer kaldı
-                        </span>
-                      </div>
-                      <ProgressBar value={approvedRegs.length} max={t.maxTeams} color="gold" />
-                    </div>
-
-                    {registered ? (
-                      <div className="text-center py-2">
-                        <CheckCircle size={28} className="text-[#10B981] mx-auto mb-2" />
-                        <p className="text-sm font-semibold text-[#111827]">Başvurunuz Alındı!</p>
-                        <p className="text-xs text-[#9CA3AF] mt-1">Organizatör onayından sonra bildirim gönderilecektir.</p>
-                      </div>
-                    ) : availableTeams.length === 0 ? (
-                      <p className="text-sm text-[#9CA3AF] text-center py-2">
-                        {(myTeams ?? []).length === 0
-                          ? "Kayıt için önce bir takım oluşturun."
-                          : "Tüm takımlarınız bu turnuvaya zaten kayıtlı."}
-                      </p>
-                    ) : !registering ? (
-                      <button onClick={() => setRegistering(true)}
-                        className="w-full flex items-center justify-center gap-2 bg-[#0F1F47] text-white font-semibold py-3 rounded-xl hover:bg-[#1A2F5A] transition-colors">
-                        Takımımı Kaydettir <ArrowRight size={16} />
-                      </button>
-                    ) : (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-xs font-medium text-[#374151] mb-1.5">Takım seçin</label>
-                          <select value={selectedTeamId} onChange={e => setSelectedTeamId(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]">
-                            {availableTeams.map(tm => (
-                              <option key={tm.id} value={tm.id}>{tm.name} ({tm._count.players} oyuncu)</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-[#374151] mb-1.5">Not (isteğe bağlı)</label>
-                          <textarea rows={2} value={note} onChange={e => setNote(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B] resize-none"
-                            placeholder="Organizatöre ek bilgi..." />
-                        </div>
-                        {regError && <p className="text-xs text-red-500">{regError}</p>}
-                        <button onClick={handleRegister} disabled={regLoading}
-                          className="w-full flex items-center justify-center gap-2 bg-[#10B981] text-white font-semibold py-2.5 rounded-xl hover:bg-[#059669] transition-colors text-sm disabled:opacity-50">
-                          <CheckCircle size={15} /> {regLoading ? "Gönderiliyor..." : "Başvuruyu Gönder"}
-                        </button>
-                        <button onClick={() => setRegistering(false)} disabled={regLoading}
-                          className="w-full text-sm text-[#9CA3AF] hover:text-[#6B7280]">İptal</button>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              )}
-
-              {myRegistration && (
-                <Card>
-                  <div className="p-5 text-center">
-                    <div className={`w-10 h-10 rounded-full mx-auto mb-3 flex items-center justify-center ${myRegistration.status === "APPROVED" ? "bg-[#ECFDF5]" : "bg-[#FEF3C7]"}`}>
-                      {myRegistration.status === "APPROVED"
-                        ? <CheckCircle size={20} className="text-[#10B981]" />
-                        : <span className="text-lg">⏳</span>}
-                    </div>
-                    <p className="text-sm font-semibold text-[#111827]">
-                      {myRegistration.status === "APPROVED" ? "Bu turnuvaya kayıtlısınız" : "Başvurunuz inceleniyor"}
-                    </p>
-                    <p className="text-xs text-[#9CA3AF] mt-1">{myRegistration.team.name}</p>
-                  </div>
-                </Card>
-              )}
-
-              <Card>
-                <CardHeader title="Turnuva Detayı" border={false} />
-                <div className="px-4 pb-4 space-y-0">
-                  {[
-                    { label: "Organizatör",  val: t.organizer.name },
-                    { label: "Format",       val: FORMAT_LABELS[t.format] ?? t.format },
-                    { label: "Maks Takım",   val: `${t.maxTeams} takım` },
-                    { label: "Kayıt Ücreti", val: t.fee ? `₺${t.fee}` : "Ücretsiz" },
-                    { label: "Son Kayıt",    val: fmt(t.deadline) },
-                  ].map(row => (
-                    <div key={row.label} className="flex justify-between py-2 border-b border-[#F3F4F6] last:border-0">
-                      <span className="text-xs text-[#9CA3AF]">{row.label}</span>
-                      <span className="text-xs font-semibold text-[#111827]">{row.val}</span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
-          )}
         </div>
       </div>
     </div>
