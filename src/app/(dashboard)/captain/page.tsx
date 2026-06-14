@@ -1,10 +1,11 @@
-import { Users, Calendar, Trophy, Search, Plus } from "lucide-react";
-import { PageContent, PageHeader, StatCard, Card, CardHeader, ActionButton, StatusBadge, ProgressBar } from "@/components/ui/PageShell";
+import { Users, Calendar, Trophy, Search, Plus, ClipboardList } from "lucide-react";
+import { PageContent, PageHeader, StatCard, Card, CardHeader, ActionButton, StatusBadge } from "@/components/ui/PageShell";
 export const dynamic = "force-dynamic";
 import { getMyTeams } from "@/lib/actions/team";
 import { getOpenTournaments } from "@/lib/actions/tournament";
 import { getSession } from "@/lib/auth";
 import Link from "next/link";
+import OpenTournamentsCard from "./OpenTournamentsCard";
 
 export default async function CaptainDashboard() {
   const session = await getSession();
@@ -13,8 +14,9 @@ export default async function CaptainDashboard() {
     getOpenTournaments().catch(() => []),
   ]);
 
-  const activeRegs = myTeams.flatMap(t => t.registrations.filter(r => r.status === "APPROVED"));
-  const pendingRegs = myTeams.flatMap(t => t.registrations.filter(r => r.status === "PENDING"));
+  const allRegs = myTeams.flatMap(t => t.registrations.map(r => ({ ...r, teamName: t.name })));
+  const activeRegs = allRegs.filter(r => r.status === "APPROVED");
+  const pendingRegs = allRegs.filter(r => r.status === "PENDING");
 
   return (
     <PageContent>
@@ -74,6 +76,49 @@ export default async function CaptainDashboard() {
               </div>
             )}
           </Card>
+          {/* Kayıtlı Turnuvalarım */}
+          <Card>
+            <CardHeader
+              title="Kayıtlı Turnuvalarım"
+              actions={<ActionButton href="/captain/tournaments" variant="ghost" size="sm">Tümünü Gör</ActionButton>}
+            />
+            {allRegs.length === 0 ? (
+              <div className="py-10 text-center">
+                <ClipboardList size={28} className="text-[#E5E7EB] mx-auto mb-2" />
+                <p className="text-sm text-[#9CA3AF]">Henüz hiçbir turnuvaya kayıt yaptırmadınız</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-[#F3F4F6]">
+                {allRegs.map((r) => {
+                  const regBadge =
+                    r.status === "APPROVED" ? { label: "Onaylandı",      variant: "green"  as const } :
+                    r.status === "PENDING"  ? { label: "Onay Bekliyor",  variant: "orange" as const } :
+                                              { label: "Reddedildi",     variant: "gray"   as const };
+                  const tsBadge =
+                    r.tournament.status === "ACTIVE"       ? { label: "Devam Ediyor",   variant: "blue"   as const } :
+                    r.tournament.status === "COMPLETED"    ? { label: "Bitti",          variant: "gray"   as const } :
+                    r.tournament.status === "REGISTRATION" ? { label: "Talep Topluyor", variant: "green"  as const } :
+                                                             { label: "Taslak",         variant: "orange" as const };
+                  return (
+                    <Link key={r.id} href={`/captain/tournaments/${r.tournament.id}`}
+                      className="flex items-center gap-4 px-5 py-4 hover:bg-[#FAFAFA] transition-colors">
+                      <div className="w-10 h-10 bg-[#FFF7ED] rounded-xl flex items-center justify-center shrink-0">
+                        <Trophy size={16} className="text-[#F59E0B]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-[#111827] truncate">{r.tournament.name}</div>
+                        <div className="text-xs text-[#9CA3AF] mt-0.5">{r.teamName}</div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <StatusBadge label={regBadge.label} variant={regBadge.variant} dot={false} />
+                        <StatusBadge label={tsBadge.label} variant={tsBadge.variant} dot={false} />
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
         </div>
 
         <div className="space-y-5">
@@ -84,47 +129,9 @@ export default async function CaptainDashboard() {
               subtitle={`${openTournaments.length} turnuva`}
               actions={<ActionButton href="/captain/tournaments" variant="ghost" size="sm">Tümünü Gör</ActionButton>}
             />
-            {openTournaments.length === 0 ? (
-              <div className="py-8 text-center text-sm text-[#9CA3AF]">Şu an açık turnuva yok</div>
-            ) : (
-              <div className="divide-y divide-[#F3F4F6]">
-                {openTournaments.slice(0, 4).map((t) => (
-                  <div key={t.id} className="px-4 py-3">
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <div className="text-sm font-semibold text-[#111827]">{t.name}</div>
-                      <span className="text-xs bg-[#ECFDF5] text-[#059669] px-2 py-0.5 rounded-full font-medium shrink-0">
-                        {t.maxTeams - t._count.registrations} yer
-                      </span>
-                    </div>
-                    <div className="text-xs text-[#9CA3AF] mb-2">{t.organizer.name} · {t.city}</div>
-                    <ProgressBar value={t._count.registrations} max={t.maxTeams} color="gold" />
-                    <div className="mt-2 flex justify-end">
-                      <Link href={`/captain/tournaments/${t.id}`} className="text-xs font-semibold text-[#F59E0B] hover:text-[#D97706]">
-                        Kayıt Ol →
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <OpenTournamentsCard tournaments={openTournaments} myTeams={myTeams} />
           </Card>
 
-          {/* Hızlı işlemler */}
-          <Card>
-            <CardHeader title="Hızlı İşlemler" border={false} />
-            <div className="px-4 pb-4 grid grid-cols-2 gap-2">
-              {[
-                { label: "Takım Oluştur", href: "/captain/my-teams/create" },
-                { label: "Turnuva Bul", href: "/captain/tournaments" },
-                { label: "Kayıtlarım", href: "/captain/registrations" },
-                { label: "Sıralamalar", href: "/captain/leaderboard" },
-              ].map((a) => (
-                <Link key={a.label} href={a.href} className="flex items-center justify-center p-3 rounded-xl bg-[#F4F6F9] hover:bg-[#E5E7EB] transition-colors text-xs font-medium text-[#374151] text-center">
-                  {a.label}
-                </Link>
-              ))}
-            </div>
-          </Card>
         </div>
       </div>
     </PageContent>
