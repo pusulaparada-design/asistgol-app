@@ -463,31 +463,40 @@ export default function MatchModal({
         {/* Alt bar */}
         <div className="px-5 py-4 border-t border-[#E5E7EB] shrink-0 bg-[#FAFAFA] rounded-b-2xl">
           {error && <p className="text-xs text-[#EF4444] mb-3">{error}</p>}
-          <div className="flex gap-2">
-            <button onClick={onClose} disabled={pending}
-              className="py-2.5 px-4 text-sm font-medium text-[#6B7280] border border-[#E5E7EB] rounded-xl hover:bg-white transition-colors bg-white disabled:opacity-40">
-              İptal
-            </button>
-            {match.status === "SCHEDULED" ? (
-              <button
-                onClick={handleStart}
-                disabled={pending || !lineupReady}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-[#059669] text-white rounded-xl hover:bg-[#047857] transition-colors disabled:opacity-50"
-              >
-                <CheckCircle size={15} />
-                {pending ? "Başlatılıyor..." : lineupReady ? "Maçı Başlat" : `Kadroyu Tamamla (${lineup.home.size + lineup.away.size}/${MAX_LINEUP * 2})`}
+          {pending ? (
+            <div className="flex items-center justify-center gap-2 py-2.5 text-sm text-[#6B7280]">
+              <svg className="animate-spin w-4 h-4 text-[#0F1F47]" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              </svg>
+              Kaydediliyor...
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button onClick={onClose}
+                className="py-2.5 px-4 text-sm font-medium text-[#6B7280] border border-[#E5E7EB] rounded-xl hover:bg-white transition-colors bg-white">
+                İptal
               </button>
-            ) : (
-              <button
-                onClick={handleFinish}
-                disabled={pending}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-[#2563EB] text-white rounded-xl hover:bg-[#1D4ED8] transition-colors disabled:opacity-50"
-              >
-                <CheckCircle size={15} />
-                {pending ? "Kaydediliyor..." : `Maçı Bitir  ${homeScore} – ${awayScore}`}
-              </button>
-            )}
-          </div>
+              {match.status === "SCHEDULED" ? (
+                <button
+                  onClick={handleStart}
+                  disabled={!lineupReady}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-[#059669] text-white rounded-xl hover:bg-[#047857] transition-colors disabled:opacity-50"
+                >
+                  <CheckCircle size={15} />
+                  {lineupReady ? "Maçı Başlat" : `Kadroyu Tamamla (${lineup.home.size + lineup.away.size}/${MAX_LINEUP * 2})`}
+                </button>
+              ) : (
+                <button
+                  onClick={handleFinish}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-[#2563EB] text-white rounded-xl hover:bg-[#1D4ED8] transition-colors"
+                >
+                  <CheckCircle size={15} />
+                  {`Maçı Bitir  ${homeScore} – ${awayScore}`}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Edit2, Play, CheckCircle2, Trophy } from "lucide-react";
+import { Edit2, Play, Trophy } from "lucide-react";
 import { PageContent, PageHeader, Card, StatusBadge } from "@/components/ui/PageShell";
 import { getTournamentMatches } from "@/lib/actions/tournament";
 import MatchModal from "../MatchModal";
@@ -103,9 +103,8 @@ export default function MatchesClient({
                       dot={false}
                     />
                     {isPlayed ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-[#ECFDF5] text-[#059669]">
-                        <CheckCircle2 size={11} />
-                        Bitti
+                      <span className="inline-flex items-center px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-[#F3F4F6] text-[#6B7280]">
+                        Oynandı
                       </span>
                     ) : isLive ? (
                       <button
