@@ -427,6 +427,47 @@ export async function getCaptainTeamsStats() {
   });
 }
 
+// ─── Kaptanın oyuncularının sıralamaları ─────────────────────
+export async function getCaptainPlayersLeaderboard() {
+  const session = await getSession();
+  if (!session) throw new Error("Yetkisiz.");
+
+  const teams = await prisma.team.findMany({
+    where: { captainId: session.userId },
+    select: { id: true, name: true },
+  });
+  const teamIds = teams.map(t => t.id);
+  if (teamIds.length === 0) return { topScorers: [], fairPlay: [] };
+
+  const players = await prisma.player.findMany({
+    where: { teamId: { in: teamIds } },
+    select: {
+      id: true, name: true, teamId: true,
+      goals:  { where: { ownGoal: false }, select: { id: true } },
+      cards:  { select: { type: true } },
+    },
+  });
+
+  const teamMap = new Map(teams.map(t => [t.id, t.name]));
+
+  const topScorers = players
+    .map(p => ({ id: p.id, name: p.name, teamName: teamMap.get(p.teamId) ?? "", goals: p.goals.length }))
+    .filter(p => p.goals > 0)
+    .sort((a, b) => b.goals - a.goals)
+    .map((p, i) => ({ ...p, rank: i + 1 }));
+
+  const fairPlay = players
+    .map(p => {
+      const yellow = p.cards.filter(c => c.type === "YELLOW").length;
+      const red    = p.cards.filter(c => c.type === "RED").length;
+      return { id: p.id, name: p.name, teamName: teamMap.get(p.teamId) ?? "", yellow, red, score: yellow + red * 3 };
+    })
+    .sort((a, b) => a.score - b.score || a.yellow - b.yellow)
+    .map((p, i) => ({ ...p, rank: i + 1 }));
+
+  return { topScorers, fairPlay };
+}
+
 // ─── Kaptanın maç takvimi ─────────────────────────────────────
 export async function getCaptainSchedule() {
   const session = await getSession();
