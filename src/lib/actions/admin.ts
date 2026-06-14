@@ -165,6 +165,66 @@ export async function getAllTeams() {
   });
 }
 
+// ─── Son aktiviteler (admin dashboard) ───────────────────────
+export async function getRecentActivity() {
+  const [recentMatches, recentRegs, recentCards] = await Promise.all([
+    prisma.match.findMany({
+      where: { status: "PLAYED" },
+      orderBy: { updatedAt: "desc" },
+      take: 4,
+      select: {
+        homeTeam: { select: { name: true } },
+        awayTeam: { select: { name: true } },
+        homeScore: true, awayScore: true,
+        updatedAt: true,
+        tournament: { select: { name: true } },
+      },
+    }),
+    prisma.teamRegistration.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 4,
+      select: {
+        createdAt: true,
+        team: { select: { name: true } },
+        tournament: { select: { name: true } },
+        status: true,
+      },
+    }),
+    prisma.card.findMany({
+      where: { type: "RED" },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+      select: {
+        createdAt: true,
+        player: { select: { name: true } },
+        match: { select: { tournament: { select: { name: true } } } },
+      },
+    }),
+  ]);
+
+  type ActivityItem = { type: "match" | "reg" | "card"; text: string; time: Date };
+  const items: ActivityItem[] = [
+    ...recentMatches.map(m => ({
+      type: "match" as const,
+      text: `Maç sonucu: ${m.homeTeam.name} ${m.homeScore} – ${m.awayScore} ${m.awayTeam.name} (${m.tournament.name})`,
+      time: m.updatedAt,
+    })),
+    ...recentRegs.map(r => ({
+      type: "reg" as const,
+      text: r.status === "APPROVED"
+        ? `${r.team.name} onaylandı — ${r.tournament.name}`
+        : `${r.team.name} başvurdu — ${r.tournament.name}`,
+      time: r.createdAt,
+    })),
+    ...recentCards.map(c => ({
+      type: "card" as const,
+      text: `Kırmızı kart: ${c.player.name} (${c.match.tournament.name})`,
+      time: c.createdAt,
+    })),
+  ];
+  return items.sort((a, b) => b.time.getTime() - a.time.getTime()).slice(0, 8);
+}
+
 // ─── Tüm maçlar (admin) ───────────────────────────────────────
 export async function getAllMatchesAdmin() {
   return prisma.match.findMany({

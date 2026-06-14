@@ -99,6 +99,9 @@ function RegRow({ reg }: { reg: Reg }) {
             <span className="flex items-center gap-1"><Phone size={10} />{reg.team.captain.phone}</span>
           )}
         </div>
+        {reg.note && (
+          <div className="ml-9 mt-1 text-[10px] text-[#6B7280] italic truncate max-w-[260px]">Not: {reg.note}</div>
+        )}
       </div>
 
       <div className="hidden md:block shrink-0 max-w-[120px]">

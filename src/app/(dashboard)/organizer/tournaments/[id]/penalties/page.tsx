@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { AlertTriangle } from "lucide-react";
 import { PageContent, PageHeader, Card, CardHeader, StatusBadge } from "@/components/ui/PageShell";
 import { getTournamentPenalties } from "@/lib/actions/match";
+import { PlayerStatusButton } from "./PlayerStatusButton";
 import { prisma } from "@/lib/prisma";
 
 export default async function PenaltiesPage({ params }: { params: Promise<{ id: string }> }) {
@@ -67,6 +68,7 @@ export default async function PenaltiesPage({ params }: { params: Promise<{ id: 
                   </div>
                 </div>
                 <StatusBadge label="Askıda" variant="red" />
+                <PlayerStatusButton playerId={p.id} currentStatus="SUSPENDED" tournamentId={id} />
               </div>
             ))}
           </div>
@@ -91,6 +93,7 @@ export default async function PenaltiesPage({ params }: { params: Promise<{ id: 
                   <span className="text-sm font-bold text-[#D97706]">{p.yellowCards} sarı kart</span>
                 </div>
                 <StatusBadge label="Risk Altında" variant="orange" />
+                <PlayerStatusButton playerId={p.id} currentStatus="ACTIVE" tournamentId={id} />
               </div>
             ))}
           </div>

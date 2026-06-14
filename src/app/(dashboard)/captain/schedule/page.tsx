@@ -20,7 +20,7 @@ function getResult(match: { homeScore: number | null; awayScore: number | null }
 }
 
 export default async function SchedulePage() {
-  const matches = await getCaptainSchedule().catch(() => []);
+  const { matches, myTeamIds } = await getCaptainSchedule().catch(() => ({ matches: [], myTeamIds: [] }));
 
   const now = new Date();
   const upcoming = matches.filter((m) => m.status !== "PLAYED");
@@ -98,10 +98,22 @@ export default async function SchedulePage() {
         ) : (
           <div className="divide-y divide-[#F3F4F6]">
             {past.slice(0, 10).map((m) => {
-              const result = null; // we don't know captain's team from here without session
+              const myId = myTeamIds.find(id => id === m.homeTeamId || id === m.awayTeamId);
+              const result = myId ? getResult(m, myId, m.homeTeamId) : null;
+              const resultStyle =
+                result === "win"  ? "text-[#059669] bg-[#ECFDF5]" :
+                result === "loss" ? "text-[#DC2626] bg-[#FEF2F2]" :
+                result === "draw" ? "text-[#D97706] bg-[#FEF3C7]" : "";
+              const resultLabel =
+                result === "win" ? "G" : result === "loss" ? "M" : result === "draw" ? "B" : null;
               return (
                 <div key={m.id} className="flex items-center gap-4 px-5 py-3.5">
-                  <div className="flex-1">
+                  {resultLabel && (
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0 ${resultStyle}`}>
+                      {resultLabel}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-[#111827]">{m.homeTeam.name} vs {m.awayTeam.name}</div>
                     <div className="text-xs text-[#9CA3AF]">{m.date ? fmtDay(m.date) : "—"} · {m.tournament.name}</div>
                   </div>

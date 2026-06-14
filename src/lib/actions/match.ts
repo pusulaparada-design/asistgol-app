@@ -479,10 +479,10 @@ export async function getCaptainSchedule() {
   });
   const teamIds = teams.map((t) => t.id);
 
-  return prisma.match.findMany({
+  const matches = await prisma.match.findMany({
     where: {
       OR: [{ homeTeamId: { in: teamIds } }, { awayTeamId: { in: teamIds } }],
-      date: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+      date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
     },
     include: {
       homeTeam:   { select: { id: true, name: true } },
@@ -492,4 +492,5 @@ export async function getCaptainSchedule() {
     },
     orderBy: { date: "asc" },
   });
+  return { matches, myTeamIds: teamIds };
 }

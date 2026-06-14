@@ -152,6 +152,20 @@ export async function addPlayerToTeam(teamId: string, data: { name: string; numb
   return player;
 }
 
+// ─── Oyuncu durumunu değiştir (organizatör) ───────────────────
+export async function updatePlayerStatus(
+  playerId: string,
+  status: "ACTIVE" | "SUSPENDED",
+  tournamentId: string,
+) {
+  const session = await getSession();
+  if (!session || session.role !== "ORGANIZER") throw new Error("Yetkisiz.");
+
+  await prisma.player.update({ where: { id: playerId }, data: { status } });
+  revalidatePath(`/organizer/tournaments/${tournamentId}/penalties`);
+  revalidatePath(`/organizer/tournaments/${tournamentId}`);
+}
+
 // ─── Oyuncu çıkar ─────────────────────────────────────────────
 export async function removePlayerFromTeam(playerId: string) {
   const session = await getSession();

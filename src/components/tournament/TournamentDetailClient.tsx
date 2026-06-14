@@ -195,9 +195,23 @@ export default function TournamentDetailClient({
                   </Link>
                 )}
                 {!isOrganizer && myRegistration && (
-                  <span className="px-3 py-1 rounded-full bg-white/10 text-xs font-medium">
-                    {myRegistration.status === "APPROVED" ? "✓ Kayıtlısınız" : "⏳ Onay Bekliyor"}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      myRegistration.status === "APPROVED"  ? "bg-[#ECFDF5] text-[#059669]" :
+                      myRegistration.status === "REJECTED"  ? "bg-[#FEF2F2] text-[#DC2626]" :
+                      "bg-white/10 text-white"
+                    }`}>
+                      {myRegistration.status === "APPROVED" ? "✓ Kayıtlısınız" :
+                       myRegistration.status === "REJECTED" ? "✗ Başvuru Reddedildi" :
+                       "⏳ Onay Bekliyor"}
+                    </span>
+                    {myRegistration.status === "REJECTED" && myRegistration.rejectionReason && (
+                      <span className="text-xs text-[#FCA5A5] text-right max-w-[220px]">Red sebebi: {myRegistration.rejectionReason}</span>
+                    )}
+                    {myRegistration.note && (
+                      <span className="text-xs text-white/50 text-right max-w-[220px]">Notunuz: {myRegistration.note}</span>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

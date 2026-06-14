@@ -1,23 +1,32 @@
 export const dynamic = "force-dynamic";
-import { Trophy, Users, Swords, ShieldCheck, TrendingUp, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Trophy, Users, Swords, ShieldCheck, TrendingUp, Clock, CheckCircle, AlertTriangle } from "lucide-react";
 import { PageContent, PageHeader, StatCard, Card, CardHeader, TableHeader, ScrollTable, StatusBadge, ActionButton } from "@/components/ui/PageShell";
-import { getPlatformStats, getAllTournaments, getAllOrganizers } from "@/lib/actions/admin";
-
-const activityFeed = [
-  { icon: Trophy, text: "Yeni turnuva oluşturuldu: Ramazan Kupası 2026", time: "5dk önce", color: "text-[#3B82F6]" },
-  { icon: Users, text: "Çınar FC turnuvaya kaydoldu", time: "18dk önce", color: "text-[#10B981]" },
-  { icon: Swords, text: "Maç sonucu: Aslan FC 3 - 1 Kaplan SK", time: "1sa önce", color: "text-[#F59E0B]" },
-  { icon: AlertTriangle, text: "Ceza: Emre Çelik (3. sarı kart)", time: "2sa önce", color: "text-[#EF4444]" },
-  { icon: CheckCircle, text: "Bahar Kupası tamamlandı — Şampiyon: Rüzgar FC", time: "1g önce", color: "text-[#10B981]" },
-];
+import { getPlatformStats, getAllTournaments, getAllOrganizers, getRecentActivity } from "@/lib/actions/admin";
 
 const emptyStats = { activeTournaments: 0, totalTeams: 0, todayMatches: 0, pendingOrganizers: 0, completedTournaments: 0, totalPlayers: 0 };
 
+function relativeTime(date: Date): string {
+  const diff = Date.now() - date.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)  return "Az önce";
+  if (mins < 60) return `${mins}dk önce`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}sa önce`;
+  return `${Math.floor(hrs / 24)}g önce`;
+}
+
+function activityIcon(type: "match" | "reg" | "card") {
+  if (type === "match") return { Icon: Swords,        color: "text-[#F59E0B]" };
+  if (type === "reg")   return { Icon: Users,         color: "text-[#10B981]" };
+  return                       { Icon: AlertTriangle, color: "text-[#EF4444]" };
+}
+
 export default async function AdminDashboard() {
-  const [stats, tournaments, organizers] = await Promise.all([
+  const [stats, tournaments, organizers, activity] = await Promise.all([
     getPlatformStats().catch(() => emptyStats),
     getAllTournaments().catch(() => []),
     getAllOrganizers().catch(() => []),
+    getRecentActivity().catch(() => []),
   ]);
 
   const statCards = [
@@ -80,17 +89,22 @@ export default async function AdminDashboard() {
         <Card>
           <CardHeader title="Son Aktiviteler" />
           <div className="divide-y divide-[#F3F4F6]">
-            {activityFeed.map((a, i) => (
-              <div key={i} className="flex gap-3 px-4 py-3">
-                <div className="w-7 h-7 rounded-lg bg-[#F4F6F9] flex items-center justify-center shrink-0 mt-0.5">
-                  <a.icon size={14} className={a.color} />
+            {activity.length === 0 ? (
+              <div className="py-8 text-center text-xs text-[#9CA3AF]">Henüz aktivite yok</div>
+            ) : activity.map((a, i) => {
+              const { Icon, color } = activityIcon(a.type);
+              return (
+                <div key={i} className="flex gap-3 px-4 py-3">
+                  <div className="w-7 h-7 rounded-lg bg-[#F4F6F9] flex items-center justify-center shrink-0 mt-0.5">
+                    <Icon size={14} className={color} />
+                  </div>
+                  <div>
+                    <div className="text-xs text-[#374151] leading-relaxed">{a.text}</div>
+                    <div className="text-[10px] text-[#9CA3AF] mt-0.5">{relativeTime(a.time)}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xs text-[#374151] leading-relaxed">{a.text}</div>
-                  <div className="text-[10px] text-[#9CA3AF] mt-0.5">{a.time}</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       </div>
