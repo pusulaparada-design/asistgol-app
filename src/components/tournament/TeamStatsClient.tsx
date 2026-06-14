@@ -272,29 +272,42 @@ export default function TeamStatsClient({
                   </div>
                 );
 
-                // Sütun genişlikleri maç satırı ve olaylar arasında aynı olmalı
-                // w-24: tarih | w-10: badge | flex-1: ev takım | w-20: skor | flex-1: dep takım | trailing
+                const hasHomeEvents = homeGoals.length + homeAssists.length + homeCards.length > 0;
+                const hasAwayEvents = awayGoals.length + awayAssists.length + awayCards.length > 0;
+
                 return (
                   <div key={m.id}>
-                    {/* Maç satırı */}
-                    <div className="flex items-center gap-3 px-5 py-3.5">
-                      <div className="w-24 shrink-0">
+                    {/* Tek flex satır — olaylar takım sütununun içinde */}
+                    <div className="flex items-start gap-3 px-5 py-3.5">
+                      {/* Tarih */}
+                      <div className="w-24 shrink-0 pt-0.5">
                         <div className="text-xs text-[#9CA3AF]">{fmt(m.date)}</div>
                         {m.time && <div className="text-xs text-[#6B7280]">{m.time}</div>}
                       </div>
-                      <div className="w-10 shrink-0">
+                      {/* EV/DEP */}
+                      <div className="w-10 shrink-0 pt-0.5">
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isHome ? "bg-[#EFF6FF] text-[#3B82F6]" : "bg-[#F4F6F9] text-[#6B7280]"}`}>
                           {isHome ? "EV" : "DEP"}
                         </span>
                       </div>
-                      <div className="flex-1 text-sm font-semibold text-[#111827] text-right truncate">{m.homeTeam.name}</div>
-                      <div className="w-20 shrink-0 text-center">
+                      {/* Ev takım adı + olayları */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-[#111827] text-right truncate">{m.homeTeam.name}</div>
+                        {hasHomeEvents && <div className="mt-2">{renderTeamEvents(homeGoals, homeAssists, homeCards, true)}</div>}
+                      </div>
+                      {/* Skor */}
+                      <div className="w-20 shrink-0 text-center pt-0.5">
                         {played
                           ? <span className="font-mono font-extrabold text-base text-[#111827]">{m.homeScore} – {m.awayScore}</span>
                           : <span className="text-sm text-[#D1D5DB]">vs</span>}
                       </div>
-                      <div className="flex-1 text-sm font-semibold text-[#111827] truncate">{m.awayTeam.name}</div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      {/* Dep takım adı + olayları */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-[#111827] truncate">{m.awayTeam.name}</div>
+                        {hasAwayEvents && <div className="mt-2">{renderTeamEvents(awayGoals, awayAssists, awayCards, false)}</div>}
+                      </div>
+                      {/* Sonuç + Grup */}
+                      <div className="flex items-center gap-2 shrink-0 pt-0.5">
                         {result && (
                           <span className={`w-8 h-8 rounded-lg text-xs font-bold flex items-center justify-center ${RESULT_CLS[result]}`}>
                             {RESULT_LABEL[result]}
@@ -307,21 +320,6 @@ export default function TeamStatsClient({
                         )}
                       </div>
                     </div>
-
-                    {/* Olaylar — maç satırıyla aynı sütun hizası */}
-                    {hasEvents && (
-                      <div className="flex gap-3 px-5 pb-3 bg-[#F8FAFC] border-t border-[#F3F4F6]">
-                        <div className="w-24 shrink-0" />
-                        <div className="w-10 shrink-0" />
-                        <div className="flex-1 pt-2.5">
-                          {renderTeamEvents(homeGoals, homeAssists, homeCards, true)}
-                        </div>
-                        <div className="w-20 shrink-0" />
-                        <div className="flex-1 pt-2.5">
-                          {renderTeamEvents(awayGoals, awayAssists, awayCards, false)}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
