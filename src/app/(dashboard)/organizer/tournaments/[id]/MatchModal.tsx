@@ -352,7 +352,12 @@ export default function MatchModal({
                 const allPlayers = isHome ? home.players : away.players;
                 const active = isHome ? onField.home : onField.away;
                 const fieldPlayers = active.size > 0 ? allPlayers.filter(p => active.has(p.id)) : allPlayers;
-                const outList = addForm.kind === "sub" ? outPlayers(addForm.teamId) : fieldPlayers;
+                const redCardedIds = new Set(events.filter(e => e.kind === "red" && e.teamId === addForm.teamId).map(e => e.playerId));
+                const outList = addForm.kind === "sub"
+                  ? outPlayers(addForm.teamId)
+                  : addForm.kind === "goal"
+                    ? fieldPlayers.filter(p => !redCardedIds.has(p.id))
+                    : fieldPlayers;
                 const inList = inPlayers(addForm.teamId).filter(p => p.id !== addForm.playerId);
                 const kindLabel: React.ReactNode = addForm.kind === "goal" ? "⚽ Gol" : addForm.kind === "yellow" ? <><YCard /> Sarı Kart</> : addForm.kind === "red" ? <><RCard /> Kırmızı Kart</> : "↔ Değişim";
                 return (

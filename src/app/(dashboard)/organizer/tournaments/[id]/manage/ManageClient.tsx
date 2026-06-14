@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   CheckCircle, XCircle, Trophy,
   Calendar, Users, Phone, CreditCard, User,
-  LayoutGrid, CalendarDays, Zap, Info, FlagTriangleRight,
+  LayoutGrid, CalendarDays, Zap, Info,
 } from "lucide-react";
 import { PageContent, PageHeader, Card, StatusBadge } from "@/components/ui/PageShell";
 import {
@@ -17,7 +17,6 @@ import {
   getGroupsWithTeams,
   getTournament,
   updateTournamentDetails,
-  completeTournament,
 } from "@/lib/actions/tournament";
 import MatchModal, { type SaveResult } from "../MatchModal";
 import GroupsTab from "./GroupsTab";
@@ -386,7 +385,6 @@ export default function ManageClient({
   const [localMatches, setLocalMatches] = useState(matches);
   const [scoreMatch, setScoreMatch] = useState<TMatch | null>(null);
   const [matchWeeks, setMatchWeeks] = useState<MatchWeek[]>([]);
-  const [completing, startComplete] = useTransition();
   const router = useRouter();
 
   useEffect(() => { setLocalMatches(matches); }, [matches]);
@@ -400,17 +398,8 @@ export default function ManageClient({
     setScoreMatch(null);
   }
 
-  function handleComplete() {
-    if (!confirm("Turnuvayı tamamlandı olarak işaretlemek istediğinizden emin misiniz? Bu işlem geri alınamaz.")) return;
-    startComplete(async () => {
-      await completeTournament(tournamentId);
-      router.refresh();
-    });
-  }
-
   const pendingCount = registrations.filter(r => r.status === "PENDING").length;
   const playedCount = localMatches.filter(m => m.homeScore !== null).length;
-  const isActive = tournament.status === "ACTIVE";
   const isCompleted = tournament.status === "COMPLETED";
 
   return (
@@ -418,16 +407,7 @@ export default function ManageClient({
       <PageHeader
         title="Yönetim"
         subtitle={`${localMatches.length} maç · ${playedCount} oynandı · ${registrations.length} başvuru`}
-        actions={isActive ? (
-          <button
-            onClick={handleComplete}
-            disabled={completing}
-            className="flex items-center gap-2 px-4 py-2 bg-[#059669] text-white text-sm font-semibold rounded-lg hover:bg-[#047857] transition-colors disabled:opacity-60"
-          >
-            <FlagTriangleRight size={15} />
-            {completing ? "İşleniyor..." : "Turnuvayı Tamamla"}
-          </button>
-        ) : isCompleted ? (
+        actions={isCompleted ? (
           <span className="flex items-center gap-2 px-4 py-2 bg-[#F4F6F9] text-[#6B7280] text-sm font-semibold rounded-lg">
             <CheckCircle size={15} />
             Tamamlandı

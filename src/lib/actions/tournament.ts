@@ -296,6 +296,22 @@ export async function saveMatchScore(data: {
     }
   }
 
+  // ── Otomatik turnuva tamamlama ───────────────────────────
+  if (data.finished) {
+    const allMatches = await prisma.match.findMany({
+      where: { tournamentId: match.tournament.id },
+      select: { status: true },
+    });
+    if (allMatches.length > 0 && allMatches.every(m => m.status === "PLAYED")) {
+      await prisma.tournament.update({
+        where: { id: match.tournament.id },
+        data: { status: "COMPLETED" },
+      });
+      revalidatePath(`/organizer/tournaments/${match.tournament.id}`);
+      revalidatePath(`/organizer/tournaments`);
+    }
+  }
+
   return { ok: true };
 }
 
