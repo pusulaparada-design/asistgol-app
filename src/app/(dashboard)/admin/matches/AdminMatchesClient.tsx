@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Search, MapPin, Pencil } from "lucide-react";
-import { PageContent, PageHeader, Card, TableHeader, ScrollTable, StatusBadge, LiveBadge, ScoreBox } from "@/components/ui/PageShell";
+import { Search, Pencil } from "lucide-react";
+import { PageContent, PageHeader, Card, ScrollTable, StatusBadge, LiveBadge, ScoreBox } from "@/components/ui/PageShell";
 import AdminMatchModal, { type AdminMatch } from "./AdminMatchModal";
 
 const statusMap: Record<string, { label: string; variant: "red" | "blue" | "gray" | "orange" }> = {
@@ -50,7 +50,15 @@ export default function AdminMatchesClient({ matches }: { matches: AdminMatch[] 
 
         <ScrollTable>
           <table className="w-full">
-            <TableHeader columns={["Turnuva / Aşama", "Ev Sahibi", "Skor", "Misafir", "Tarih", "Saha", "Durum", "İşlem"]} />
+            <thead>
+              <tr className="border-b border-[#E5E7EB]">
+                {(["Turnuva / Aşama", "Ev Sahibi", "Skor", "Misafir", "Tarih", "Durum", "İşlem"] as const).map((col, i) => (
+                  <th key={i} className={`px-4 py-3 text-xs font-semibold text-[#6B7280] uppercase tracking-wide whitespace-nowrap ${
+                    col === "Skor" || col === "İşlem" ? "text-center" : col === "Ev Sahibi" ? "text-right" : "text-left"
+                  }`}>{col}</th>
+                ))}
+              </tr>
+            </thead>
             <tbody className="divide-y divide-[#F3F4F6]">
               {filtered.map((m) => {
                 const s = statusMap[m.status] ?? { label: m.status, variant: "gray" as const };
@@ -61,26 +69,19 @@ export default function AdminMatchesClient({ matches }: { matches: AdminMatch[] 
                       <div className="text-xs font-semibold text-[#374151]">{m.tournament.name}</div>
                       <div className="text-[10px] text-[#9CA3AF]">{phase}</div>
                     </td>
-                    <td className="px-4 py-3 text-sm font-medium text-[#111827]">{m.homeTeam.name}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-[#111827] text-right">{m.homeTeam.name}</td>
                     <td className="px-4 py-3 text-center">
                       {m.status === "LIVE" ? <LiveBadge /> : <ScoreBox home={m.homeScore} away={m.awayScore} status={m.status.toLowerCase()} />}
                     </td>
                     <td className="px-4 py-3 text-sm font-medium text-[#111827]">{m.awayTeam.name}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-xs text-[#374151]">{fmtDate(m.date)}</div>
                       {m.time && <div className="text-xs text-[#9CA3AF]">{m.time}</div>}
                     </td>
                     <td className="px-4 py-3">
-                      {m.venue ? (
-                        <div className="flex items-center gap-1 text-xs text-[#6B7280]"><MapPin size={11} /> {m.venue}</div>
-                      ) : (
-                        <span className="text-xs text-[#D1D5DB]">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
                       {m.status === "LIVE" ? <LiveBadge /> : <StatusBadge label={s.label} variant={s.variant} />}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-center">
                       <button
                         onClick={() => setEditMatch(m)}
                         title="Düzenle"
@@ -93,7 +94,7 @@ export default function AdminMatchesClient({ matches }: { matches: AdminMatch[] 
                 );
               })}
               {filtered.length === 0 && (
-                <tr><td colSpan={8} className="py-10 text-center text-sm text-[#9CA3AF]">
+                <tr><td colSpan={7} className="py-10 text-center text-sm text-[#9CA3AF]">
                   {matches.length === 0 ? "Henüz maç yok" : "Maç bulunamadı."}
                 </td></tr>
               )}
