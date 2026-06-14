@@ -67,10 +67,11 @@ model Tournament {
   organizerId String
   organizer   User   @relation("OrganizerTournaments", fields: [organizerId], references: [id])
 
-  registrations TeamRegistration[]
-  groups        Group[]
-  matches       Match[]
-  announcements Announcement[]
+  registrations      TeamRegistration[]
+  groups             Group[]
+  matches            Match[]
+  announcements      Announcement[]
+  playerSuspensions  PlayerSuspension[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -131,9 +132,10 @@ model Player {
   teamId String
   team   Team   @relation(fields: [teamId], references: [id])
 
-  goals   Goal[]
-  assists Assist[]
-  cards   Card[]
+  goals       Goal[]
+  assists     Assist[]
+  cards       Card[]
+  suspensions PlayerSuspension[]
 
   createdAt DateTime @default(now())
 
@@ -310,6 +312,22 @@ model Card {
 enum CardType {
   YELLOW
   RED
+}
+
+// ─── Oyuncu Ceza Kaydı ───────────────────────────────────────────
+model PlayerSuspension {
+  id               String @id @default(cuid())
+  playerId         String
+  tournamentId     String
+  remainingMatches Int    @default(0)
+  yellowCycleCount Int    @default(0)
+
+  player     Player     @relation(fields: [playerId], references: [id])
+  tournament Tournament @relation(fields: [tournamentId], references: [id])
+
+  @@unique([playerId, tournamentId])
+  @@index([tournamentId])
+  @@index([playerId])
 }
 
 // ─── Bildirim ────────────────────────────────────────────────────

@@ -300,21 +300,29 @@ export default function MatchModal({
                       )}
                       {team.players.map(p => {
                         const checked = sel.has(p.id);
-                        const disabled = !checked && full;
+                        const isSuspended = (p.suspensions?.[0]?.remainingMatches ?? 0) > 0;
+                        const disabled = isSuspended || (!checked && full);
                         return (
                           <button
                             key={p.id}
-                            onClick={() => toggleLineup(key, p.id)}
+                            onClick={() => !isSuspended && toggleLineup(key, p.id)}
                             disabled={disabled}
                             className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all ${
-                              checked ? "bg-[#0F1F47] text-white" : disabled ? "opacity-30 cursor-not-allowed" : "hover:bg-[#F4F6F9] text-[#374151]"
+                              isSuspended
+                                ? "bg-[#FEF2F2] cursor-not-allowed opacity-70"
+                                : checked
+                                  ? "bg-[#0F1F47] text-white"
+                                  : disabled
+                                    ? "opacity-30 cursor-not-allowed"
+                                    : "hover:bg-[#F4F6F9] text-[#374151]"
                             }`}
                           >
-                            <span className={`w-6 h-6 rounded text-[10px] font-bold flex items-center justify-center shrink-0 ${checked ? "bg-white/20 text-white" : "bg-[#E5E7EB] text-[#9CA3AF]"}`}>
+                            <span className={`w-6 h-6 rounded text-[10px] font-bold flex items-center justify-center shrink-0 ${isSuspended ? "bg-[#FECACA] text-[#DC2626]" : checked ? "bg-white/20 text-white" : "bg-[#E5E7EB] text-[#9CA3AF]"}`}>
                               {p.number ?? "—"}
                             </span>
                             <span className="text-xs font-medium truncate flex-1">{p.name}</span>
-                            {checked && <CheckCircle size={12} className="text-[#10B981] shrink-0" />}
+                            {isSuspended && <span className="text-[9px] font-bold text-[#DC2626] shrink-0 bg-[#FEE2E2] px-1.5 py-0.5 rounded">CEZALI</span>}
+                            {!isSuspended && checked && <CheckCircle size={12} className="text-[#10B981] shrink-0" />}
                           </button>
                         );
                       })}

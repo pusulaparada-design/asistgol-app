@@ -192,10 +192,26 @@ export async function getTournamentMatches(tournamentId: string) {
     where: { tournamentId },
     include: {
       homeTeam: {
-        include: { players: { select: { id: true, name: true, number: true }, orderBy: { number: "asc" } } },
+        include: {
+          players: {
+            select: {
+              id: true, name: true, number: true,
+              suspensions: { where: { tournamentId }, select: { remainingMatches: true } },
+            },
+            orderBy: { number: "asc" },
+          },
+        },
       },
       awayTeam: {
-        include: { players: { select: { id: true, name: true, number: true }, orderBy: { number: "asc" } } },
+        include: {
+          players: {
+            select: {
+              id: true, name: true, number: true,
+              suspensions: { where: { tournamentId }, select: { remainingMatches: true } },
+            },
+            orderBy: { number: "asc" },
+          },
+        },
       },
       group: { select: { name: true } },
       goals: { include: { player: { select: { name: true, number: true } } } },
@@ -293,6 +309,91 @@ export async function saveMatchScore(data: {
     const allPlayed = roundMatches.every(m => m.status === "PLAYED");
     if (allPlayed) {
       sendWeeklySummaryForRound(match.tournament.id, match.round).catch(() => {});
+    }
+  }
+
+  // ── Otomatik ceza hesaplama ──────────────────────────────
+  if (data.finished) {
+    // 1) Bu maçta oynayan her iki takımın askıdaki oyuncularının ceza sayacını 1 azalt
+    const eligiblePlayerIds = await prisma.player.findMany({
+      where: { teamId: { in: [match.homeTeamId, match.awayTeamId] } },
+      select: { id: true },
+    }).then(ps => ps.map(p => p.id));
+
+    await prisma.playerSuspension.updateMany({
+      where: {
+        tournamentId: match.tournament.id,
+        playerId: { in: eligiblePlayerIds },
+        remainingMatches: { gt: 0 },
+      },
+      data: { remainingMatches: { decrement: 1 } },
+    });
+
+    // 2) Bu maçtaki kartlara göre yeni cezalar oluştur
+    if (data.cards.length > 0) {
+      const { yellowCardLimit } = await prisma.tournament.findUniqueOrThrow({
+        where: { id: match.tournament.id },
+        select: { yellowCardLimit: true },
+      });
+
+      const cardsByPlayer = new Map<string, { yellows: number; reds: number }>();
+      for (const card of data.cards) {
+        const e = cardsByPlayer.get(card.playerId) ?? { yellows: 0, reds: 0 };
+        if (card.type === "YELLOW") e.yellows++; else e.reds++;
+        cardsByPlayer.set(card.playerId, e);
+      }
+
+      for (const [playerId, cards] of cardsByPlayer) {
+        const doubleYellow = cards.yellows >= 2;
+        const directRed   = cards.reds > 0;
+
+        let banMatches    = 0;
+        let yellowsForCycle = 0;
+
+        if (doubleYellow && directRed) {
+          banMatches = 2;                          // kırmızı baskın
+        } else if (doubleYellow) {
+          banMatches = 1;                          // 2 sarı = 1 maç ceza, döngüye sayılmaz
+        } else if (directRed) {
+          banMatches = 2;                          // direkt kırmızı = 2 maç
+          yellowsForCycle = cards.yellows;         // beraberindeki sarı döngüye sayılır
+        } else {
+          yellowsForCycle = cards.yellows;         // normal sarı kartlar
+        }
+
+        let cycleBan       = 0;
+        let finalYellowCycle = 0;
+
+        if (yellowsForCycle > 0) {
+          const current = await prisma.playerSuspension.findUnique({
+            where: { playerId_tournamentId: { playerId, tournamentId: match.tournament.id } },
+          });
+          const newCount = (current?.yellowCycleCount ?? 0) + yellowsForCycle;
+          if (newCount >= yellowCardLimit) {
+            cycleBan = 1;
+            finalYellowCycle = 0;
+          } else {
+            finalYellowCycle = newCount;
+          }
+        }
+
+        const totalBan = banMatches + cycleBan;
+
+        if (totalBan > 0 || yellowsForCycle > 0) {
+          await prisma.playerSuspension.upsert({
+            where: { playerId_tournamentId: { playerId, tournamentId: match.tournament.id } },
+            create: {
+              playerId, tournamentId: match.tournament.id,
+              remainingMatches: totalBan,
+              yellowCycleCount: finalYellowCycle,
+            },
+            update: {
+              remainingMatches: { increment: totalBan },
+              ...(yellowsForCycle > 0 || cycleBan > 0 ? { yellowCycleCount: finalYellowCycle } : {}),
+            },
+          });
+        }
+      }
     }
   }
 

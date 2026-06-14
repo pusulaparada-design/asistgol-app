@@ -2,18 +2,18 @@ export const dynamic = "force-dynamic";
 import { AlertTriangle } from "lucide-react";
 import { PageContent, PageHeader, Card, CardHeader, StatusBadge } from "@/components/ui/PageShell";
 import { getTournamentPenalties } from "@/lib/actions/match";
-import { PlayerStatusButton } from "./PlayerStatusButton";
+import { ClearSuspensionButton } from "./ClearSuspensionButton";
 import { prisma } from "@/lib/prisma";
 
 export default async function PenaltiesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const [data, tournament] = await Promise.all([
-    getTournamentPenalties(id).catch(() => ({ suspended: [], atRisk: [], fairPlay: [] })),
+    getTournamentPenalties(id).catch(() => ({ suspended: [], atRisk: [], fairPlay: [], yellowLimit: 3 })),
     prisma.tournament.findUnique({ where: { id }, select: { name: true } }),
   ]);
 
-  const { suspended, atRisk, fairPlay } = data;
+  const { suspended, atRisk, fairPlay, yellowLimit } = data;
   const cleanCount = fairPlay.filter((t) => t.yellow === 0 && t.red === 0).length;
 
   return (
@@ -29,7 +29,7 @@ export default async function PenaltiesPage({ params }: { params: Promise<{ id: 
         <div className="bg-[#FEF3C7] border border-[#FDE68A] rounded-xl p-4">
           <div className="text-2xl font-bold text-[#D97706]">{atRisk.length}</div>
           <div className="text-sm text-[#D97706] font-medium mt-0.5">Risk Altında</div>
-          <div className="text-xs text-[#FCD34D] mt-1">2 sarı kart birikimi var</div>
+          <div className="text-xs text-[#FCD34D] mt-1">{yellowLimit}. sarı karta yaklaşıyor</div>
         </div>
         <div className="bg-[#ECFDF5] border border-[#A7F3D0] rounded-xl p-4">
           <div className="text-2xl font-bold text-[#059669]">{cleanCount}</div>
@@ -40,7 +40,7 @@ export default async function PenaltiesPage({ params }: { params: Promise<{ id: 
 
       {suspended.length > 0 && (
         <Card>
-          <CardHeader title="Ceza Çeken Oyuncular" subtitle="Bu maçta oynayamazlar" />
+          <CardHeader title="Ceza Çeken Oyuncular" subtitle="Bir sonraki maçta oynayamazlar" />
           <div className="divide-y divide-[#F3F4F6]">
             {suspended.map((p) => (
               <div key={p.id} className="flex items-center gap-4 px-5 py-4 bg-[#FEF2F2]/30">
@@ -67,8 +67,12 @@ export default async function PenaltiesPage({ params }: { params: Promise<{ id: 
                     <div className="text-[10px] text-[#9CA3AF]">Kırmızı</div>
                   </div>
                 </div>
+                <div className="text-center">
+                  <div className="text-lg font-extrabold text-[#DC2626]">{p.remainingMatches}</div>
+                  <div className="text-[10px] text-[#9CA3AF]">maç kaldı</div>
+                </div>
                 <StatusBadge label="Askıda" variant="red" />
-                <PlayerStatusButton playerId={p.id} currentStatus="SUSPENDED" tournamentId={id} />
+                <ClearSuspensionButton playerId={p.id} tournamentId={id} />
               </div>
             ))}
           </div>
@@ -77,7 +81,10 @@ export default async function PenaltiesPage({ params }: { params: Promise<{ id: 
 
       {atRisk.length > 0 && (
         <Card>
-          <CardHeader title="Risk Altındaki Oyuncular" subtitle="2 veya daha fazla sarı kart — bir sonraki ceza maçtan men" />
+          <CardHeader
+            title="Risk Altındaki Oyuncular"
+            subtitle={`${yellowLimit}. sarı karda 1 maç men — şu anki birikimler`}
+          />
           <div className="divide-y divide-[#F3F4F6]">
             {atRisk.map((p) => (
               <div key={p.id} className="flex items-center gap-4 px-5 py-4">
@@ -88,12 +95,20 @@ export default async function PenaltiesPage({ params }: { params: Promise<{ id: 
                   <div className="text-sm font-semibold text-[#111827]">{p.name}</div>
                   <div className="text-xs text-[#9CA3AF]">{p.team}</div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-4 bg-[#F59E0B] rounded-sm" />
-                  <span className="text-sm font-bold text-[#D97706]">{p.yellowCards} sarı kart</span>
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: yellowLimit }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-3 h-4 rounded-sm ${i < p.yellowCycleCount ? "bg-[#F59E0B]" : "bg-[#E5E7EB]"}`}
+                    />
+                  ))}
+                  <span className="text-xs text-[#9CA3AF] ml-1">{p.yellowCycleCount}/{yellowLimit}</span>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-bold text-[#D97706]">{p.yellowsUntilBan} daha</div>
+                  <div className="text-[10px] text-[#9CA3AF]">cezaya kalan</div>
                 </div>
                 <StatusBadge label="Risk Altında" variant="orange" />
-                <PlayerStatusButton playerId={p.id} currentStatus="ACTIVE" tournamentId={id} />
               </div>
             ))}
           </div>

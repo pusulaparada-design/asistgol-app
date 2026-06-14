@@ -256,37 +256,60 @@ export async function getTournamentStats(tournamentId: string) {
 
 // ─── Turnuva cezalı oyuncular ─────────────────────────────────
 export async function getTournamentPenalties(tournamentId: string) {
-  const registrations = await prisma.teamRegistration.findMany({
-    where: { tournamentId, status: "APPROVED" },
-    select: { teamId: true, team: { select: { name: true } } },
-  });
-  const teamIds = registrations.map((r) => r.teamId);
-
-  const [suspended, yellowGroups, allCards] = await Promise.all([
-    prisma.player.findMany({
-      where: { status: "SUSPENDED", teamId: { in: teamIds } },
-      include: {
-        team: { select: { name: true } },
-        cards: { where: { match: { tournamentId } }, select: { type: true } },
-      },
+  const [registrations, tournament] = await Promise.all([
+    prisma.teamRegistration.findMany({
+      where: { tournamentId, status: "APPROVED" },
+      select: { teamId: true, team: { select: { name: true } } },
     }),
-    prisma.card.groupBy({
-      by: ["playerId"],
-      where: { type: "YELLOW", match: { tournamentId } },
-      _count: { playerId: true },
-      orderBy: { _count: { playerId: "desc" } },
-    }),
-    prisma.card.findMany({
-      where: { match: { tournamentId } },
-      select: { type: true, player: { select: { teamId: true } } },
+    prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { yellowCardLimit: true },
     }),
   ]);
 
-  const atRiskPlayerIds = yellowGroups.filter((y) => y._count.playerId >= 2).map((y) => y.playerId);
-  const atRisk = await prisma.player.findMany({
-    where: { id: { in: atRiskPlayerIds }, status: { not: "SUSPENDED" }, teamId: { in: teamIds } },
-    include: { team: { select: { name: true } } },
-  });
+  const teamIds = registrations.map((r) => r.teamId);
+  const teamNameMap = new Map(registrations.map((r) => [r.teamId, r.team.name]));
+  const yellowLimit = tournament?.yellowCardLimit ?? 3;
+
+  const [suspensions, allCards] = await Promise.all([
+    prisma.playerSuspension.findMany({
+      where: { tournamentId, player: { teamId: { in: teamIds } } },
+      include: { player: { select: { id: true, name: true, teamId: true } } },
+    }),
+    prisma.card.findMany({
+      where: { match: { tournamentId } },
+      select: { playerId: true, type: true, player: { select: { teamId: true } } },
+    }),
+  ]);
+
+  // Kart sayıları (görüntüleme için)
+  const cardMap = new Map<string, { yellows: number; reds: number }>();
+  for (const c of allCards) {
+    const e = cardMap.get(c.playerId) ?? { yellows: 0, reds: 0 };
+    if (c.type === "YELLOW") e.yellows++; else e.reds++;
+    cardMap.set(c.playerId, e);
+  }
+
+  const suspended = suspensions
+    .filter((s) => s.remainingMatches > 0)
+    .map((s) => ({
+      id: s.player.id,
+      name: s.player.name,
+      team: teamNameMap.get(s.player.teamId) ?? "",
+      remainingMatches: s.remainingMatches,
+      yellowCards: cardMap.get(s.player.id)?.yellows ?? 0,
+      redCards: cardMap.get(s.player.id)?.reds ?? 0,
+    }));
+
+  const atRisk = suspensions
+    .filter((s) => s.remainingMatches === 0 && s.yellowCycleCount > 0)
+    .map((s) => ({
+      id: s.player.id,
+      name: s.player.name,
+      team: teamNameMap.get(s.player.teamId) ?? "",
+      yellowCycleCount: s.yellowCycleCount,
+      yellowsUntilBan: yellowLimit - s.yellowCycleCount,
+    }));
 
   const fairPlayMap = new Map<string, { name: string; yellow: number; red: number }>();
   for (const reg of registrations) fairPlayMap.set(reg.teamId, { name: reg.team.name, yellow: 0, red: 0 });
@@ -298,18 +321,7 @@ export async function getTournamentPenalties(tournamentId: string) {
     .sort((a, b) => (a.yellow + a.red * 3) - (b.yellow + b.red * 3))
     .map((entry, i) => ({ ...entry, pos: i + 1, score: entry.yellow + entry.red * 3 }));
 
-  return {
-    suspended: suspended.map((p) => ({
-      id: p.id, name: p.name, team: p.team.name,
-      yellowCards: p.cards.filter((c) => c.type === "YELLOW").length,
-      redCards: p.cards.filter((c) => c.type === "RED").length,
-    })),
-    atRisk: atRisk.map((p) => ({
-      id: p.id, name: p.name, team: p.team.name,
-      yellowCards: yellowGroups.find((y) => y.playerId === p.id)?._count.playerId ?? 0,
-    })),
-    fairPlay,
-  };
+  return { suspended, atRisk, fairPlay, yellowLimit };
 }
 
 // ─── Global liderboard (kaptan için) ─────────────────────────

@@ -166,6 +166,18 @@ export async function updatePlayerStatus(
   revalidatePath(`/organizer/tournaments/${tournamentId}`);
 }
 
+// ─── Otomatik cezayı sıfırla (organizatör) ───────────────────
+export async function clearPlayerSuspension(playerId: string, tournamentId: string) {
+  const session = await getSession();
+  if (!session || session.role !== "ORGANIZER") throw new Error("Yetkisiz.");
+
+  await prisma.playerSuspension.updateMany({
+    where: { playerId, tournamentId },
+    data: { remainingMatches: 0 },
+  });
+  revalidatePath(`/organizer/tournaments/${tournamentId}/penalties`);
+}
+
 // ─── Oyuncu çıkar ─────────────────────────────────────────────
 export async function removePlayerFromTeam(playerId: string) {
   const session = await getSession();
