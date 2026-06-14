@@ -100,10 +100,9 @@ export async function getStandings(tournamentId: string) {
   const groups = await prisma.group.findMany({
     where: { tournamentId },
     include: {
-      teams: { include: { team: true } },
+      teams: { include: { team: { select: { id: true, name: true } } } },
       matches: {
         where: { status: "PLAYED" },
-        include: { homeTeam: true, awayTeam: true },
       },
     },
   });
@@ -169,11 +168,11 @@ export async function getTournamentMatches(tournamentId: string) {
   return prisma.match.findMany({
     where: { tournamentId },
     include: {
-      homeTeam: true,
-      awayTeam: true,
-      group: true,
-      goals: { include: { player: { select: { name: true } } } },
-      cards: { include: { player: { select: { name: true } } } },
+      homeTeam: { select: { id: true, name: true } },
+      awayTeam: { select: { id: true, name: true } },
+      group:    { select: { id: true, name: true } },
+      goals: { include: { player: { select: { id: true, name: true, teamId: true } } } },
+      cards: { include: { player: { select: { id: true, name: true, teamId: true } } } },
     },
     orderBy: [{ date: "asc" }, { createdAt: "asc" }],
   });
@@ -325,8 +324,9 @@ export async function getGlobalLeaderboard() {
     }),
     prisma.card.findMany({
       select: { type: true, player: { select: { teamId: true, team: { select: { id: true, name: true } } } } },
+      take: 2000,
     }),
-    prisma.team.findMany({ select: { id: true, name: true }, orderBy: { createdAt: "desc" } }),
+    prisma.team.findMany({ select: { id: true, name: true }, orderBy: { createdAt: "desc" }, take: 500 }),
   ]);
 
   const playerIds = scorerGroups.map((g) => g.playerId);
@@ -485,10 +485,10 @@ export async function getCaptainSchedule() {
       date: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
     },
     include: {
-      homeTeam: true,
-      awayTeam: true,
-      tournament: { select: { name: true } },
-      group: true,
+      homeTeam:   { select: { id: true, name: true } },
+      awayTeam:   { select: { id: true, name: true } },
+      tournament: { select: { id: true, name: true } },
+      group:      { select: { id: true, name: true } },
     },
     orderBy: { date: "asc" },
   });

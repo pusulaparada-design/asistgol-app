@@ -189,7 +189,7 @@ export async function getAllMatchesAdmin() {
       cards: { include: { player: { select: { name: true, teamId: true } } } },
     },
     orderBy: [{ date: "desc" }],
-    take: 200,
+    take: 100,
   });
 }
 

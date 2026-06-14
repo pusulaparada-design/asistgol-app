@@ -40,25 +40,30 @@ export async function getTournament(id: string) {
               _count: { select: { players: true } },
             },
           },
-          groupTeam: { include: { group: true } },
+          groupTeam: { include: { group: { select: { id: true, name: true } } } },
         },
         orderBy: { createdAt: "asc" },
       },
       groups: {
         include: {
           teams: {
-            include: { team: true },
+            include: { team: { select: { id: true, name: true } } },
           },
-          matches: { include: { homeTeam: true, awayTeam: true } },
+          matches: {
+            include: {
+              homeTeam: { select: { id: true, name: true } },
+              awayTeam: { select: { id: true, name: true } },
+            },
+          },
         },
       },
       matches: {
         include: {
-          homeTeam: true,
-          awayTeam: true,
-          group: true,
-          goals: { include: { player: true } },
-          cards: { include: { player: true } },
+          homeTeam: { select: { id: true, name: true } },
+          awayTeam: { select: { id: true, name: true } },
+          group:    { select: { id: true, name: true } },
+          goals: { include: { player: { select: { id: true, name: true, teamId: true } } } },
+          cards: { include: { player: { select: { id: true, name: true, teamId: true } } } },
         },
         orderBy: { date: "asc" },
       },

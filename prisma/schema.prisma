@@ -27,6 +27,8 @@ model User {
   captainTeams         Team[]         @relation("CaptainTeams")
   announcements        Announcement[]
   notifications        Notification[]
+
+  @@index([email])
 }
 
 enum Role {
@@ -72,6 +74,9 @@ model Tournament {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([organizerId])
+  @@index([status])
 }
 
 enum TournamentFormat {
@@ -111,6 +116,8 @@ model Team {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([captainId])
 }
 
 // ─── Oyuncu ───────────────────────────────────────────────────────
@@ -129,6 +136,8 @@ model Player {
   cards   Card[]
 
   createdAt DateTime @default(now())
+
+  @@index([teamId])
 }
 
 enum PlayerStatus {
@@ -154,6 +163,9 @@ model TeamRegistration {
   createdAt DateTime @default(now())
 
   @@unique([teamId, tournamentId])
+  @@index([tournamentId])
+  @@index([teamId])
+  @@index([status])
 }
 
 enum RegistrationStatus {
@@ -174,6 +186,8 @@ model Group {
   matches Match[]
 
   createdAt DateTime @default(now())
+
+  @@index([tournamentId])
 }
 
 model GroupTeam {
@@ -222,6 +236,12 @@ model Match {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([tournamentId])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+  @@index([status])
+  @@index([date])
 }
 
 enum MatchStatus {
@@ -245,6 +265,10 @@ model Goal {
   player Player @relation(fields: [playerId], references: [id])
 
   createdAt DateTime @default(now())
+
+  @@index([matchId])
+  @@index([playerId])
+  @@index([teamId])
 }
 
 // ─── Asist ───────────────────────────────────────────────────────
@@ -259,6 +283,9 @@ model Assist {
   player Player @relation(fields: [playerId], references: [id])
 
   createdAt DateTime @default(now())
+
+  @@index([matchId])
+  @@index([playerId])
 }
 
 // ─── Kart ────────────────────────────────────────────────────────
@@ -274,6 +301,10 @@ model Card {
   player Player @relation(fields: [playerId], references: [id])
 
   createdAt DateTime @default(now())
+
+  @@index([matchId])
+  @@index([playerId])
+  @@index([type])
 }
 
 enum CardType {
@@ -300,6 +331,9 @@ model Notification {
   read      Boolean          @default(false)
   link      String?
   createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([userId, read])
 }
 
 // ─── Duyuru ──────────────────────────────────────────────────────
@@ -316,4 +350,7 @@ model Announcement {
   organizer  User        @relation(fields: [organizerId], references: [id])
 
   createdAt DateTime @default(now())
+
+  @@index([organizerId])
+  @@index([tournamentId])
 }
