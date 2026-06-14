@@ -54,6 +54,10 @@ export async function login(
   const match = await bcrypt.compare(password, user.password);
   if (!match) return { ok: false, error: "E-posta veya şifre hatalı." };
 
+  if (!user.emailVerified) {
+    return { ok: false, error: "E-posta adresiniz henüz doğrulanmadı. Lütfen e-postanıza gelen doğrulama bağlantısına tıklayın." };
+  }
+
   const payload: SessionPayload = {
     userId: user.id,
     username: user.username,

@@ -1,7 +1,8 @@
 "use server";
 import { prisma } from "@/lib/prisma";
-import { getSession, hashPassword } from "@/lib/auth";
+import { getSession, hashPassword, createToken, COOKIE_NAME } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 
 export async function updateProfile(data: {
@@ -37,6 +38,13 @@ export async function updateProfile(data: {
     },
   });
 
+  // Session cookie'deki ismi güncelle
+  const newToken = await createToken({ ...session, name });
+  const cookieStore = await cookies();
+  cookieStore.set(COOKIE_NAME, newToken, { httpOnly: true, path: "/", maxAge: 60 * 60 * 24 * 7 });
+
+  revalidatePath("/organizer");
+  revalidatePath("/captain");
   revalidatePath("/organizer/settings");
   return { ok: true };
 }

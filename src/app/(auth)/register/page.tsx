@@ -81,20 +81,18 @@ export default function RegisterPage() {
           <div className="w-16 h-16 bg-[#ECFDF5] rounded-full flex items-center justify-center mx-auto mb-5">
             <CheckCircle size={32} className="text-[#10B981]" />
           </div>
-          <h2 className="text-xl font-bold text-[#111827] mb-2">Hesabınız Oluşturuldu!</h2>
+          <h2 className="text-xl font-bold text-[#111827] mb-2">Neredeyse Tamam!</h2>
           <p className="text-sm text-[#6B7280] mb-2">
-            Hoş geldiniz! Kayıt bilgileriniz e-posta adresinize gönderildi.
+            Hesabınız oluşturuldu. E-posta adresinize bir doğrulama bağlantısı gönderdik.
           </p>
           <p className="text-xs text-[#9CA3AF] mb-6">
-            {role === "organizer"
-              ? "Organizatör hesabınızla giriş yaparak turnuva oluşturabilirsiniz."
-              : "Hesabınızla giriş yaparak takım kurabilir ve turnuvalara katılabilirsiniz."}
+            Giriş yapabilmek için e-postanızdaki bağlantıya tıklayarak hesabınızı doğrulayın. Mail gelmezse spam klasörünü kontrol edin.
           </p>
           <Link
             href="/login"
             className="inline-block bg-[#0F1F47] text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-[#1A2F5A] transition-colors text-sm"
           >
-            Giriş Yap
+            Giriş Sayfasına Git
           </Link>
         </div>
       </div>

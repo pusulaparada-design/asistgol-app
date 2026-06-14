@@ -137,7 +137,8 @@ export default function TournamentDetailClient({ tournament: t }: { tournament: 
 
   return (
     <div className="min-h-screen bg-[#F4F6F9]">
-      {/* ── HEADER BANNER ── */}
+      {/* ── HEADER BANNER + TABS (sticky) ── */}
+      <div className="sticky top-0 z-30">
       <div className="bg-[#0F1F47] text-white px-6 py-6">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -202,6 +203,8 @@ export default function TournamentDetailClient({ tournament: t }: { tournament: 
           ))}
         </div>
       </div>
+
+      </div>{/* /sticky */}
 
       {/* ── İÇERİK ── */}
       <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">

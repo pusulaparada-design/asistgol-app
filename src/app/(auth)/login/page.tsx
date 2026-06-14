@@ -1,8 +1,27 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { Trophy, Shield, BarChart2, AlertCircle, Loader2 } from "lucide-react";
+import { Trophy, Shield, BarChart2, AlertCircle, Loader2, CheckCircle } from "lucide-react";
 import Link from "next/link";
+
+function VerifiedBanner() {
+  const params = useSearchParams();
+  const v = params.get("verified");
+  if (v === "1") return (
+    <div className="flex items-center gap-2 p-3 bg-[#ECFDF5] border border-[#A7F3D0] rounded-lg text-sm text-[#059669] mb-4">
+      <CheckCircle size={15} className="shrink-0" />
+      E-posta adresiniz doğrulandı. Artık giriş yapabilirsiniz.
+    </div>
+  );
+  if (v === "invalid") return (
+    <div className="flex items-center gap-2 p-3 bg-[#FEF2F2] border border-[#FECACA] rounded-lg text-sm text-[#DC2626] mb-4">
+      <AlertCircle size={15} className="shrink-0" />
+      Doğrulama bağlantısı geçersiz veya süresi dolmuş.
+    </div>
+  );
+  return null;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -96,6 +115,10 @@ export default function LoginPage() {
 
           <h2 className="text-2xl font-bold text-[#111827] mb-1">Hoş Geldiniz</h2>
           <p className="text-sm text-[#6B7280] mb-8">Hesabınıza giriş yapın</p>
+
+          <Suspense>
+            <VerifiedBanner />
+          </Suspense>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>

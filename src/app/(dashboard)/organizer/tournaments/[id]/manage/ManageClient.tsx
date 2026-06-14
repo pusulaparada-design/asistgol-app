@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Edit2, CheckCircle, XCircle, Trophy,
+  CheckCircle, XCircle, Trophy,
   Calendar, Users, Phone, CreditCard, User,
-  LayoutGrid, CalendarDays, Zap,
+  LayoutGrid, CalendarDays, Zap, Info,
 } from "lucide-react";
 import { PageContent, PageHeader, Card, StatusBadge } from "@/components/ui/PageShell";
 import {
@@ -15,8 +15,10 @@ import {
   getTournamentMatches,
   getTournamentRegistrations,
   getGroupsWithTeams,
+  getTournament,
+  updateTournamentDetails,
 } from "@/lib/actions/tournament";
-import MatchModal from "../MatchModal";
+import MatchModal, { type SaveResult } from "../MatchModal";
 import GroupsTab from "./GroupsTab";
 import ScheduleTab, { type MatchWeek } from "./ScheduleTab";
 import FixtureTab from "./FixtureTab";
@@ -27,14 +29,15 @@ type Registrations = Awaited<ReturnType<typeof getTournamentRegistrations>>;
 type Reg = Registrations[number] & { paid: boolean };
 type Groups = Awaited<ReturnType<typeof getGroupsWithTeams>>;
 
-type Tab = "matches" | "registrations" | "groups" | "schedule" | "fixture";
+type Tab = "matches" | "registrations" | "groups" | "schedule" | "fixture" | "info";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "matches",       label: "Maçlar",          icon: <Trophy size={14} /> },
   { id: "registrations", label: "Başvurular",       icon: <Users size={14} /> },
   { id: "groups",        label: "Gruplar",          icon: <LayoutGrid size={14} /> },
   { id: "schedule",      label: "Maç Günleri",      icon: <CalendarDays size={14} /> },
-  { id: "fixture",       label: "Fikstür Oluştur",  icon: <Zap size={14} /> },
+  { id: "fixture",       label: "Fikstür",           icon: <Zap size={14} /> },
+  { id: "info",          label: "Turnuva Bilgileri", icon: <Info size={14} /> },
 ];
 
 const ROUND_LABEL: Record<string, string> = {
@@ -143,57 +146,68 @@ function RegRow({ reg }: { reg: Reg }) {
 
 /* ── Maçlar sekmesi ───────────────────────────────────────── */
 function MatchesTab({ matches, onScore }: { matches: Matches; onScore: (m: TMatch) => void }) {
+  const sorted = [...matches].sort((a, b) => {
+    const da = a.date ? a.date.getTime() : 0;
+    const db = b.date ? b.date.getTime() : 0;
+    if (da !== db) return da - db;
+    return (a.time ?? "").localeCompare(b.time ?? "");
+  });
+
   return (
-    <div>
-      <Card>
-        <div className="grid grid-cols-[80px_1fr_96px_1fr_96px_auto] items-center gap-2 px-4 py-2 bg-[#F8FAFC] border-b border-[#E5E7EB]">
-          <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">Tarih</span>
-          <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider text-right">Ev Sahibi</span>
-          <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider text-center">Skor</span>
-          <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">Deplasman</span>
-          <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">Tur</span>
-          <span />
-        </div>
-        <div className="divide-y divide-[#F3F4F6]">
-          {matches.length === 0 && (
-            <div className="py-10 text-center text-sm text-[#9CA3AF]">Henüz maç oluşturulmadı.</div>
-          )}
-          {matches.map(m => {
-            const played = m.homeScore !== null;
-            return (
-              <div key={m.id} className="grid grid-cols-[80px_1fr_96px_1fr_96px_auto] items-center gap-2 px-4 py-3 hover:bg-[#FAFAFA] transition-colors">
-                <div className="text-xs text-[#9CA3AF]">
-                  <div className="flex items-center gap-1"><Calendar size={10} />{fmt(m.date)}</div>
-                  {m.time && <div className="ml-3.5 text-[10px]">{m.time}</div>}
-                </div>
-                <div className="text-sm font-semibold text-[#111827] text-right truncate">{m.homeTeam.name}</div>
-                <div className="text-center">
-                  {played
-                    ? <span className="font-mono font-extrabold text-sm text-[#111827]">{m.homeScore} – {m.awayScore}</span>
-                    : <span className="text-xs text-[#D1D5DB]">vs</span>
-                  }
-                </div>
-                <div className="text-sm font-semibold text-[#111827] truncate">{m.awayTeam.name}</div>
-                <div>
-                  <span className="text-[10px] bg-[#F4F6F9] text-[#6B7280] px-2 py-0.5 rounded-md font-medium">{matchLabel(m)}</span>
-                </div>
-                <button
-                  onClick={() => onScore(m)}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
-                    played
-                      ? "bg-[#F4F6F9] text-[#6B7280] hover:bg-[#E5E7EB]"
-                      : "bg-[#FEF3C7] text-[#D97706] hover:bg-[#FDE68A]"
-                  }`}
-                >
-                  <Edit2 size={11} />
-                  {played ? "Düzenle" : "Skor Gir"}
-                </button>
+    <Card>
+      <div className="grid grid-cols-[12px_80px_1fr_96px_1fr_80px] items-center gap-2 px-4 py-2 bg-[#F8FAFC] border-b border-[#E5E7EB]">
+        <span />
+        <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">Tarih</span>
+        <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider text-right">Ev Sahibi</span>
+        <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider text-center">Skor</span>
+        <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider">Deplasman</span>
+        <span className="text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider text-center">Tur</span>
+      </div>
+      <div className="divide-y divide-[#F3F4F6]">
+        {sorted.length === 0 && (
+          <div className="py-10 text-center text-sm text-[#9CA3AF]">Henüz maç oluşturulmadı.</div>
+        )}
+        {sorted.map(m => {
+          const isPlayed = m.status === "PLAYED";
+          const isLive   = m.status === "LIVE";
+          return (
+            <div
+              key={m.id}
+              onClick={() => onScore(m)}
+              className="grid grid-cols-[12px_80px_1fr_96px_1fr_80px] items-center gap-2 px-4 py-3 hover:bg-[#F4F6F9] cursor-pointer transition-colors"
+            >
+              <div className="flex items-center justify-center">
+                {isLive ? (
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#10B981]" />
+                  </span>
+                ) : isPlayed ? (
+                  <span className="inline-flex rounded-full h-2.5 w-2.5 bg-[#D1D5DB]" />
+                ) : null}
               </div>
-            );
-          })}
-        </div>
-      </Card>
-    </div>
+              <div className="text-xs text-[#9CA3AF]">
+                <div className="flex items-center gap-1"><Calendar size={10} />{fmt(m.date)}</div>
+                {m.time && <div className="ml-3.5 text-[10px]">{m.time}</div>}
+              </div>
+              <div className="text-sm font-semibold text-[#111827] text-right truncate">{m.homeTeam.name}</div>
+              <div className="text-center">
+                {isPlayed
+                  ? <span className="font-mono font-extrabold text-sm text-[#111827]">{m.homeScore} – {m.awayScore}</span>
+                  : isLive
+                    ? <span className="font-mono font-extrabold text-sm text-[#F59E0B]">{m.homeScore ?? 0} – {m.awayScore ?? 0}</span>
+                    : <span className="text-xs text-[#D1D5DB]">vs</span>
+                }
+              </div>
+              <div className="text-sm font-semibold text-[#111827] truncate">{m.awayTeam.name}</div>
+              <div className="text-center">
+                <span className="text-[10px] bg-[#F4F6F9] text-[#6B7280] px-2 py-0.5 rounded-md font-medium">{matchLabel(m)}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
@@ -220,30 +234,170 @@ function RegistrationsTab({ registrations }: { registrations: Registrations }) {
   );
 }
 
+type Tournament = NonNullable<Awaited<ReturnType<typeof getTournament>>>;
+
+const inputCls = "w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]";
+
+function toDateInput(d: Date | null | undefined) {
+  if (!d) return "";
+  return new Date(d).toISOString().slice(0, 10);
+}
+function toDisplay(iso: string) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const display = toDisplay(value);
+  const handlePicker = (e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value);
+  const handleText = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let v = e.target.value.replace(/\D/g, "");
+    if (v.length > 2) v = v.slice(0, 2) + "/" + v.slice(2);
+    if (v.length > 5) v = v.slice(0, 5) + "/" + v.slice(5, 9);
+    if (v.length === 10) { const [d, m, y] = v.split("/"); onChange(`${y}-${m}-${d}`); }
+    else if (v.length === 0) onChange("");
+  };
+  return (
+    <div>
+      <label className="block text-xs font-medium text-[#374151] mb-1.5">{label}</label>
+      <div className="relative">
+        <input type="text" defaultValue={display} onChange={handleText} maxLength={10} placeholder="GG/AA/YYYY"
+          className={inputCls + " pr-9"} />
+        <button type="button" onClick={() => pickerRef.current?.showPicker()}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#374151]">
+          <Calendar size={14} />
+        </button>
+        <input ref={pickerRef} type="date" value={value} onChange={handlePicker}
+          className="absolute inset-0 opacity-0 pointer-events-none" />
+      </div>
+    </div>
+  );
+}
+
+function TournamentInfoTab({ tournament, tournamentId }: { tournament: Tournament; tournamentId: string }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [name, setName] = useState(tournament.name);
+  const [description, setDescription] = useState(tournament.description ?? "");
+  const [venue, setVenue] = useState(tournament.venue ?? "");
+  const [startDate, setStartDate] = useState(toDateInput(tournament.startDate));
+  const [endDate, setEndDate] = useState(toDateInput(tournament.endDate));
+  const [fee, setFee] = useState(tournament.fee?.toString() ?? "");
+  const [prize, setPrize] = useState(tournament.prize ?? "");
+
+  const isLocked = tournament.status === "ACTIVE" || tournament.status === "COMPLETED";
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+    startTransition(async () => {
+      const result = await updateTournamentDetails(tournamentId, { name, description, venue, startDate, endDate, fee, prize });
+      setMsg(result.ok
+        ? { ok: true, text: "Turnuva bilgileri güncellendi." }
+        : { ok: false, text: (result as { ok: false; error: string }).error });
+      if (result.ok) router.refresh();
+    });
+  }
+
+  return (
+    <Card>
+      {isLocked && (
+        <div className="px-5 py-3 bg-[#FEF3C7] border-b border-[#FCD34D] text-xs text-[#92400E] flex items-center gap-2">
+          <Info size={13} className="shrink-0" />
+          Turnuva başladığı için bilgiler düzenlenemez.
+        </div>
+      )}
+      <form onSubmit={handleSave} className="p-5 space-y-4">
+        <div>
+          <label className="block text-xs font-medium text-[#374151] mb-1.5">Turnuva Adı *</label>
+          <input value={name} onChange={e => setName(e.target.value)} disabled={isLocked}
+            className={inputCls + (isLocked ? " bg-[#F9FAFB] text-[#9CA3AF]" : "")} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[#374151] mb-1.5">Kurallar / Açıklama</label>
+          <textarea rows={5} value={description} onChange={e => setDescription(e.target.value)} disabled={isLocked}
+            className={inputCls + " resize-none" + (isLocked ? " bg-[#F9FAFB] text-[#9CA3AF]" : "")}
+            placeholder="Turnuva kuralları, katılım koşulları..." />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-[#374151] mb-1.5">Saha Adı</label>
+            <input value={venue} onChange={e => setVenue(e.target.value)} disabled={isLocked}
+              className={inputCls + (isLocked ? " bg-[#F9FAFB] text-[#9CA3AF]" : "")} placeholder="Yıldız Halı Saha" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[#374151] mb-1.5">Kayıt Ücreti (₺)</label>
+            <input type="number" value={fee} onChange={e => setFee(e.target.value)} disabled={isLocked}
+              className={inputCls + (isLocked ? " bg-[#F9FAFB] text-[#9CA3AF]" : "")} placeholder="0" />
+          </div>
+          <DateField label="Başlangıç Tarihi" value={startDate} onChange={setStartDate} />
+          <DateField label="Bitiş Tarihi" value={endDate} onChange={setEndDate} />
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-[#374151] mb-1.5">Ödül / Kupa Bilgisi</label>
+            <input value={prize} onChange={e => setPrize(e.target.value)} disabled={isLocked}
+              className={inputCls + (isLocked ? " bg-[#F9FAFB] text-[#9CA3AF]" : "")} placeholder="₺5.000 veya Kupa" />
+          </div>
+        </div>
+
+        {msg && (
+          <p className={`text-xs rounded-lg px-3 py-2 border flex items-center gap-2 ${msg.ok ? "text-[#059669] bg-[#ECFDF5] border-[#A7F3D0]" : "text-[#EF4444] bg-[#FEF2F2] border-[#FECACA]"}`}>
+            {msg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}
+            {msg.text}
+          </p>
+        )}
+
+        {!isLocked && (
+          <button type="submit" disabled={isPending}
+            className="bg-[#0F1F47] text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-[#1A2F5A] transition-colors disabled:opacity-60">
+            {isPending ? "Kaydediliyor..." : "Kaydet"}
+          </button>
+        )}
+      </form>
+    </Card>
+  );
+}
+
 /* ── Ana bileşen ──────────────────────────────────────────── */
 export default function ManageClient({
   tournamentId,
   matches,
   registrations,
   groups,
+  tournament,
 }: {
   tournamentId: string;
   matches: Matches;
   registrations: Registrations;
   groups: Groups;
+  tournament: Tournament;
 }) {
   const [tab, setTab] = useState<Tab>("matches");
+  const [localMatches, setLocalMatches] = useState(matches);
   const [scoreMatch, setScoreMatch] = useState<TMatch | null>(null);
   const [matchWeeks, setMatchWeeks] = useState<MatchWeek[]>([]);
 
+  useEffect(() => { setLocalMatches(matches); }, [matches]);
+
+  function handleSaved(result: SaveResult) {
+    setLocalMatches(prev => prev.map(m =>
+      m.id === result.matchId
+        ? { ...m, status: result.status, homeScore: result.homeScore, awayScore: result.awayScore }
+        : m
+    ));
+    setScoreMatch(null);
+  }
+
   const pendingCount = registrations.filter(r => r.status === "PENDING").length;
-  const playedCount = matches.filter(m => m.homeScore !== null).length;
+  const playedCount = localMatches.filter(m => m.homeScore !== null).length;
 
   return (
     <PageContent>
       <PageHeader
         title="Yönetim"
-        subtitle={`${matches.length} maç · ${playedCount} oynandı · ${registrations.length} başvuru`}
+        subtitle={`${localMatches.length} maç · ${playedCount} oynandı · ${registrations.length} başvuru`}
       />
 
       {/* Tab bar */}
@@ -271,7 +425,7 @@ export default function ManageClient({
 
       {/* Tab içerikleri */}
       {tab === "matches" && (
-        <MatchesTab matches={matches} onScore={setScoreMatch} />
+        <MatchesTab matches={localMatches} onScore={setScoreMatch} />
       )}
       {tab === "registrations" && (
         <RegistrationsTab registrations={registrations} />
@@ -283,10 +437,13 @@ export default function ManageClient({
         <ScheduleTab weeks={matchWeeks} onChange={setMatchWeeks} />
       )}
       {tab === "fixture" && (
-        <FixtureTab groups={groups} matchWeeks={matchWeeks} tournamentId={tournamentId} />
+        <FixtureTab groups={groups} matchWeeks={matchWeeks} tournamentId={tournamentId} matches={localMatches} />
+      )}
+      {tab === "info" && (
+        <TournamentInfoTab tournament={tournament} tournamentId={tournamentId} />
       )}
 
-      {scoreMatch && <MatchModal match={scoreMatch} onClose={() => setScoreMatch(null)} />}
+      {scoreMatch && <MatchModal match={scoreMatch} onClose={() => setScoreMatch(null)} onSaved={handleSaved} />}
     </PageContent>
   );
 }

@@ -8,6 +8,7 @@ import {
   sendRegistrationApprovedEmail,
   sendRegistrationRejectedEmail,
   sendMatchResultEmail,
+  sendRescheduleEmail,
 } from "@/lib/email";
 import { sendWeeklySummaryForRound } from "./summary";
 
@@ -118,6 +119,43 @@ export async function createTournament(data: {
   return tournament;
 }
 
+// ─── Turnuva bilgilerini güncelle (başlamadan önce) ──────────
+export async function updateTournamentDetails(
+  id: string,
+  data: { name: string; description: string; venue: string; startDate: string; endDate: string; fee: string; prize: string }
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Yetkisiz." };
+
+  const tournament = await prisma.tournament.findUnique({ where: { id }, select: { organizerId: true, status: true } });
+  if (!tournament) return { ok: false, error: "Turnuva bulunamadı." };
+  if (tournament.organizerId !== session.userId) return { ok: false, error: "Yetkisiz." };
+  if (tournament.status === "ACTIVE" || tournament.status === "COMPLETED") {
+    return { ok: false, error: "Turnuva başladıktan sonra bilgiler düzenlenemez." };
+  }
+
+  const name = data.name.trim();
+  if (!name) return { ok: false, error: "Turnuva adı boş olamaz." };
+
+  await prisma.tournament.update({
+    where: { id },
+    data: {
+      name,
+      description: data.description.trim() || null,
+      venue: data.venue.trim() || null,
+      startDate: data.startDate ? new Date(data.startDate + "T12:00:00") : null,
+      endDate: data.endDate ? new Date(data.endDate + "T12:00:00") : null,
+      fee: data.fee ? Number(data.fee) : null,
+      prize: data.prize.trim() || null,
+    },
+  });
+
+  revalidatePath(`/organizer/tournaments/${id}`);
+  revalidatePath(`/organizer/tournaments/${id}/manage`);
+  revalidatePath(`/organizer/tournaments`);
+  return { ok: true };
+}
+
 // ─── Turnuva durumunu güncelle ────────────────────────────────
 export async function updateTournamentStatus(id: string, status: TournamentStatus) {
   const session = await getSession();
@@ -211,6 +249,8 @@ export async function saveMatchScore(data: {
   revalidatePath(`/organizer/tournaments/${match.tournament.id}/matches`);
   revalidatePath(`/organizer/tournaments/${match.tournament.id}/standings`);
   revalidatePath(`/organizer/tournaments/${match.tournament.id}/stats`);
+  revalidatePath(`/organizer/tournaments/${match.tournament.id}/manage`);
+  revalidatePath(`/captain/tournaments/${match.tournament.id}`);
 
   if (data.finished) {
     const homeCaptain = match.homeTeam.captain;
@@ -461,4 +501,76 @@ export async function saveGeneratedFixtures(
   revalidatePath(`/organizer/tournaments/${tournamentId}/fixture`);
   revalidatePath(`/captain/schedule`);
   revalidatePath(`/captain/tournaments`);
+}
+
+// ─── Fikstür tarih/saat güncelle ──────────────────────────────
+export async function rescheduleMatches(
+  tournamentId: string,
+  changes: { matchId: string; date: string | null; time: string | null }[]
+) {
+  const session = await getSession();
+  if (!session) throw new Error("Yetkisiz.");
+  if (changes.length === 0) return { ok: true };
+
+  const matchIds = changes.map(c => c.matchId);
+  const affectedMatches = await prisma.match.findMany({
+    where: { id: { in: matchIds } },
+    include: {
+      homeTeam: { include: { captain: { select: { id: true, name: true, email: true } } } },
+      awayTeam: { include: { captain: { select: { id: true, name: true, email: true } } } },
+      tournament: { select: { id: true, name: true } },
+    },
+  });
+
+  await Promise.all(
+    changes.map(c =>
+      prisma.match.update({
+        where: { id: c.matchId },
+        data: {
+          date: c.date ? new Date(c.date + "T12:00:00") : null,
+          time: c.time || null,
+        },
+      })
+    )
+  );
+
+  const notifs: { userId: string; type: "ANNOUNCEMENT"; title: string; body: string; link: string }[] = [];
+  const emailJobs: Promise<void>[] = [];
+
+  for (const change of changes) {
+    const match = affectedMatches.find(m => m.id === change.matchId);
+    if (!match) continue;
+
+    const dateStr = change.date
+      ? new Date(change.date + "T12:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })
+      : "—";
+    const body = `${match.homeTeam.name} – ${match.awayTeam.name} maçı yeniden planlandı: ${dateStr}${change.time ? " " + change.time : ""}`;
+    const link = `/captain/tournaments/${match.tournament.id}`;
+
+    for (const captain of [match.homeTeam.captain, match.awayTeam.captain]) {
+      notifs.push({ userId: captain.id, type: "ANNOUNCEMENT", title: "Maç Tarihi Değişti", body, link });
+      if (captain.email) {
+        emailJobs.push(
+          sendRescheduleEmail({
+            to: captain.email,
+            captainName: captain.name,
+            homeTeam: match.homeTeam.name,
+            awayTeam: match.awayTeam.name,
+            newDate: dateStr,
+            newTime: change.time ?? "",
+            tournamentName: match.tournament.name,
+            tournamentId: match.tournament.id,
+          }).catch(() => {})
+        );
+      }
+    }
+  }
+
+  if (notifs.length > 0) await createNotifications(notifs);
+  await Promise.allSettled(emailJobs);
+
+  revalidatePath(`/organizer/tournaments/${tournamentId}/manage`);
+  revalidatePath(`/captain/schedule`);
+
+  return { ok: true };
 }

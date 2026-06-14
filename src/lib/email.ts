@@ -12,6 +12,36 @@ const transporter = nodemailer.createTransport({
 
 const FROM = `AsistGol <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
 
+// RFC 2606 rezerve TLD'ler ve sahte test uzantıları — bounce önlemek için atla
+const FAKE_TLDS = new Set([".test", ".example", ".invalid", ".localhost", ".local", ".internal"]);
+
+function isDeliverableEmail(email: string): boolean {
+  if (!email) return false;
+  const domain = email.slice(email.lastIndexOf("@") + 1).toLowerCase();
+  const tld = domain.slice(domain.lastIndexOf("."));
+  return !FAKE_TLDS.has(tld);
+}
+
+async function sendMail(opts: Parameters<typeof transporter.sendMail>[0] & { to: string }) {
+  if (!isDeliverableEmail(opts.to)) return;
+  await transporter.sendMail(opts);
+}
+
+export async function sendVerificationEmail({ to, name, verifyUrl }: {
+  to: string; name: string; verifyUrl: string;
+}) {
+  const body = `
+    <p style="margin:0 0 16px;color:#111827;font-size:16px;font-weight:600;">Merhaba ${name},</p>
+    <p style="margin:0 0 20px;color:#6B7280;font-size:14px;">AsistGol hesabınızı aktifleştirmek için aşağıdaki butona tıklayın. Bu bağlantı <strong>24 saat</strong> geçerlidir.</p>
+    ${btn(verifyUrl, "E-postamı Doğrula")}
+    <p style="margin:16px 0 0;color:#9CA3AF;font-size:12px;">Eğer bu hesabı siz oluşturmadıysanız bu e-postayı görmezden gelebilirsiniz.</p>`;
+  await sendMail({
+    from: FROM, to,
+    subject: "AsistGol — E-posta adresinizi doğrulayın",
+    html: baseLayout("#10B981", "E-posta Doğrulama", "Hesabınızı Aktifleştirin", body),
+  });
+}
+
 export async function sendWelcomeEmail({
   to,
   name,
@@ -89,7 +119,7 @@ export async function sendWelcomeEmail({
 </body>
 </html>`;
 
-  await transporter.sendMail({
+  await sendMail({
     from: FROM,
     to,
     subject: `AsistGol'e Hoş Geldiniz, ${name}!`,
@@ -147,7 +177,7 @@ export async function sendRegistrationApprovedEmail({
     <p style="margin:0 0 16px;color:#6B7280;font-size:14px;line-height:1.6;"><strong>${teamName}</strong> takımınızın <strong>${tournamentName}</strong> turnuvasına başvurusu <span style="color:#059669;font-weight:700;">onaylandı!</span></p>
     <p style="margin:0 0 4px;color:#6B7280;font-size:14px;">Fikstür ve grup bilgilerini takip etmek için turnuva sayfasını ziyaret edin.</p>
     ${btn(url, "Turnuvaya Git", "#059669", "#ffffff")}`;
-  await transporter.sendMail({
+  await sendMail({
     from: FROM, to,
     subject: `✅ Başvurunuz Onaylandı — ${tournamentName}`,
     html: baseLayout("#059669", "Başvuru Onaylandı", `${teamName} turnuvada!`, body),
@@ -161,7 +191,7 @@ export async function sendRegistrationRejectedEmail({
     <p style="margin:0 0 16px;color:#111827;font-size:16px;font-weight:600;">Merhaba ${captainName},</p>
     <p style="margin:0 0 16px;color:#6B7280;font-size:14px;line-height:1.6;"><strong>${teamName}</strong> takımınızın <strong>${tournamentName}</strong> turnuvasına başvurusu <span style="color:#DC2626;font-weight:700;">reddedildi.</span></p>
     <p style="margin:0;color:#6B7280;font-size:14px;">Daha fazla bilgi için turnuva organizatörüyle iletişime geçebilirsiniz.</p>`;
-  await transporter.sendMail({
+  await sendMail({
     from: FROM, to,
     subject: `❌ Başvurunuz Reddedildi — ${tournamentName}`,
     html: baseLayout("#DC2626", "Başvuru Reddedildi", `${teamName} başvurusu`, body),
@@ -177,7 +207,7 @@ export async function sendNewRegistrationEmail({
     <p style="margin:0 0 16px;color:#6B7280;font-size:14px;line-height:1.6;"><strong>${teamName}</strong> (Kaptan: ${captainName}) takımı <strong>${tournamentName}</strong> turnuvasına başvurdu.</p>
     <p style="margin:0 0 4px;color:#6B7280;font-size:14px;">Başvuruyu onaylamak veya reddetmek için yönetim paneline gidin.</p>
     ${btn(url, "Başvuruları Yönet")}`;
-  await transporter.sendMail({
+  await sendMail({
     from: FROM, to,
     subject: `📋 Yeni Başvuru — ${tournamentName}`,
     html: baseLayout("#0F1F47", "Yeni Başvuru", `${teamName} başvurdu`, body),
@@ -199,7 +229,7 @@ export async function sendMatchResultEmail({
       </tr>
     </table>
     ${btn(url, "Turnuva Detayı", "#F59E0B", "#0F1F47")}`;
-  await transporter.sendMail({
+  await sendMail({
     from: FROM, to,
     subject: `⚽ Maç Sonucu: ${homeTeam} ${homeScore}–${awayScore} ${awayTeam}`,
     html: baseLayout("#0F1F47", "Maç Sonucu", `${homeTeam} vs ${awayTeam}`, body),
@@ -219,10 +249,31 @@ export async function sendAnnouncementEmail({
       <p style="margin:0;font-size:14px;color:#6B7280;line-height:1.6;">${announcementBody}</p>
     </div>
     ${btn(url, "Turnuva Sayfası")}`;
-  await transporter.sendMail({
+  await sendMail({
     from: FROM, to,
     subject: `📢 Duyuru: ${announcementTitle} — ${tournamentName}`,
     html: baseLayout("#0F1F47", "Turnuva Duyurusu", announcementTitle, body),
+  });
+}
+
+export async function sendRescheduleEmail({
+  to, captainName, homeTeam, awayTeam, newDate, newTime, tournamentName, tournamentId,
+}: { to: string; captainName: string; homeTeam: string; awayTeam: string; newDate: string; newTime: string; tournamentName: string; tournamentId: string }) {
+  const url = `${process.env.NEXT_PUBLIC_APP_URL || "https://asistgol-app.vercel.app"}/captain/tournaments/${tournamentId}`;
+  const body = `
+    <p style="margin:0 0 16px;color:#111827;font-size:16px;font-weight:600;">Merhaba ${captainName},</p>
+    <p style="margin:0 0 16px;color:#6B7280;font-size:14px;"><strong>${tournamentName}</strong> turnuvasında bir maçınızın tarihi değiştirildi.</p>
+    <table cellpadding="0" cellspacing="0" style="margin:16px 0;width:100%;background:#F9FAFB;border-radius:8px;border:1px solid #E5E7EB;">
+      <tr><td style="padding:14px 18px;">
+        <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#111827;">${homeTeam} – ${awayTeam}</p>
+        <p style="margin:0;font-size:13px;color:#6B7280;">📅 ${newDate}${newTime ? ` · ${newTime}` : ""}</p>
+      </td></tr>
+    </table>
+    ${btn(url, "Turnuva Sayfası")}`;
+  await sendMail({
+    from: FROM, to,
+    subject: `📅 Maç Tarihi Değişti — ${tournamentName}`,
+    html: baseLayout("#F59E0B", "Yeniden Planlandı", `${homeTeam} – ${awayTeam}`, body),
   });
 }
 
@@ -423,7 +474,7 @@ export async function sendWeeklySummaryEmail({
 </table>
 </body></html>`;
 
-  await transporter.sendMail({
+  await sendMail({
     from: FROM, to,
     subject: `📊 ${round} Özeti — ${tournamentName}`,
     html,

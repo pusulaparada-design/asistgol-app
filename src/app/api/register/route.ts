@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
-import { sendWelcomeEmail } from "@/lib/email";
+import { sendVerificationEmail } from "@/lib/email";
+import { randomBytes } from "crypto";
 
 function slugify(str: string) {
   return str
@@ -46,8 +47,9 @@ export async function POST(req: Request) {
     const username = await uniqueUsername(usernameBase || email.split("@")[0]);
 
     const hashed = await hashPassword(password);
-
     const prismaRole = role === "organizer" ? "ORGANIZER" : "CAPTAIN";
+    const verifyToken = randomBytes(32).toString("hex");
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.asistgol.com";
 
     await prisma.user.create({
       data: {
@@ -58,13 +60,19 @@ export async function POST(req: Request) {
         email,
         phone: phone || null,
         city: city || null,
+        emailVerified: false,
+        emailVerifyToken: verifyToken,
       },
     });
 
     try {
-      await sendWelcomeEmail({ to: email, name, role: prismaRole, username });
+      await sendVerificationEmail({
+        to: email,
+        name,
+        verifyUrl: `${appUrl}/api/verify-email?token=${verifyToken}`,
+      });
     } catch (mailErr) {
-      console.error("Mail gönderilemedi:", mailErr);
+      console.error("Doğrulama maili gönderilemedi:", mailErr);
     }
 
     return NextResponse.json({ ok: true, username });

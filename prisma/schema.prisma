@@ -15,11 +15,13 @@ model User {
   password  String
   role      Role
   name      String
-  email     String?  @unique
-  phone     String?
-  city      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  email            String?  @unique
+  phone            String?
+  city             String?
+  emailVerified    Boolean  @default(true)
+  emailVerifyToken String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   organizedTournaments Tournament[]   @relation("OrganizerTournaments")
   captainTeams         Team[]         @relation("CaptainTeams")

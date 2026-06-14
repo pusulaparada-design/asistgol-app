@@ -153,6 +153,7 @@ export default function MatchModal({
   function commitAdd() {
     if (!addForm?.playerId) return;
     if (addForm.kind === "sub" && !addForm.inPlayerId) return;
+    if (!addForm.minute) return;
     const teamPlayers = addForm.teamId === match.homeTeamId ? home.players : away.players;
     const player = teamPlayers.find(p => p.id === addForm.playerId);
     const inPlayer = teamPlayers.find(p => p.id === addForm.inPlayerId);
@@ -193,7 +194,7 @@ export default function MatchModal({
         onSaved?.({ matchId: match.id, status: "LIVE", homeScore, awayScore });
         onClose();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Kaydedilemedi.");
+        setError(e instanceof Error ? e.message : String(e));
       }
     });
   }
@@ -218,7 +219,7 @@ export default function MatchModal({
         onSaved?.({ matchId: match.id, status: "PLAYED", homeScore, awayScore });
         onClose();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Kaydedilemedi.");
+        setError(e instanceof Error ? e.message : String(e));
       }
     });
   }
@@ -416,7 +417,7 @@ export default function MatchModal({
                         Vazgeç
                       </button>
                       <button onClick={commitAdd}
-                        disabled={!addForm.playerId || (addForm.kind === "sub" && !addForm.inPlayerId)}
+                        disabled={!addForm.playerId || (addForm.kind === "sub" && !addForm.inPlayerId) || !addForm.minute}
                         className="flex-1 py-2 text-xs font-bold bg-[#0F1F47] text-white rounded-lg hover:bg-[#1A2F5A] disabled:opacity-40 transition-colors">
                         Ekle ✓
                       </button>
@@ -470,7 +471,7 @@ export default function MatchModal({
         {/* Alt bar */}
         <div className="px-5 py-4 border-t border-[#E5E7EB] shrink-0 bg-[#FAFAFA] rounded-b-2xl">
           {error && <p className="text-xs text-[#EF4444] mb-3">{error}</p>}
-          {pending ? (
+          {match.status === "PLAYED" ? null : pending ? (
             <div className="flex items-center justify-center gap-2 py-2.5 text-sm text-[#6B7280]">
               <svg className="animate-spin w-4 h-4 text-[#0F1F47]" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>

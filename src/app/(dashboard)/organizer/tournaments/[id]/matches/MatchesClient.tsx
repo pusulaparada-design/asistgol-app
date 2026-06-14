@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect } from "react";
 import { Edit2, Play, Trophy } from "lucide-react";
 import { PageContent, PageHeader, Card, StatusBadge } from "@/components/ui/PageShell";
-import { getTournamentMatches } from "@/lib/actions/tournament";
+import type { getTournamentMatches } from "@/lib/actions/tournament";
 import MatchModal, { type SaveResult } from "../MatchModal";
 
 type Matches = Awaited<ReturnType<typeof getTournamentMatches>>;
@@ -34,13 +34,18 @@ export default function MatchesClient({
 }) {
   const [matches, setMatches] = useState(initialMatches);
   const [selected, setSelected] = useState<TMatch | null>(null);
-  const [, startRefresh] = useTransition();
 
-  function handleSaved(_result: SaveResult) {
-    startRefresh(async () => {
-      const fresh = await getTournamentMatches(tournamentId);
-      setMatches(fresh);
-    });
+  // RSC update'i (revalidatePath'ten gelen) matches state'e yansıt
+  useEffect(() => {
+    setMatches(initialMatches);
+  }, [initialMatches]);
+
+  function handleSaved(result: SaveResult) {
+    setMatches(prev => prev.map(m =>
+      m.id === result.matchId
+        ? { ...m, status: result.status, homeScore: result.homeScore, awayScore: result.awayScore }
+        : m
+    ));
   }
 
   const played    = matches.filter(m => m.status === "PLAYED");
