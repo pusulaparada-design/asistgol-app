@@ -251,19 +251,16 @@ export default function TeamStatsClient({
                         {isHome ? "EV" : "DEP"}
                       </span>
 
-                      {/* Rakip */}
-                      <div className="flex-1 text-sm font-semibold text-[#111827] truncate">{opponent}</div>
-
-                      {/* Skor */}
-                      {played ? (
-                        <div className="text-center shrink-0 w-20">
-                          <span className="font-mono font-extrabold text-sm text-[#111827]">
-                            {isHome ? `${myScore} – ${opScore}` : `${opScore} – ${myScore}`}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="text-xs text-[#D1D5DB] w-20 text-center">Planlandı</div>
-                      )}
+                      {/* Ev – Skor – Deplasman */}
+                      <div className="flex-1 flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-semibold text-[#111827] truncate text-right flex-1">{m.homeTeam.name}</span>
+                        {played ? (
+                          <span className="font-mono font-extrabold text-sm text-[#111827] shrink-0 w-14 text-center">{m.homeScore} – {m.awayScore}</span>
+                        ) : (
+                          <span className="text-xs text-[#D1D5DB] shrink-0 w-14 text-center">vs</span>
+                        )}
+                        <span className="text-sm font-semibold text-[#111827] truncate flex-1">{m.awayTeam.name}</span>
+                      </div>
 
                       {/* Sonuç */}
                       {result && (
