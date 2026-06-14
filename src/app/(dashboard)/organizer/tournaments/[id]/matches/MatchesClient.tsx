@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Edit2, Play, Trophy } from "lucide-react";
 import { PageContent, PageHeader, Card, StatusBadge } from "@/components/ui/PageShell";
 import { getTournamentMatches } from "@/lib/actions/tournament";
-import MatchModal from "../MatchModal";
+import MatchModal, { type SaveResult } from "../MatchModal";
 
 type Matches = Awaited<ReturnType<typeof getTournamentMatches>>;
 type TMatch = Matches[number];
@@ -28,13 +28,21 @@ function matchLabel(m: TMatch) {
 
 export default function MatchesClient({
   tournamentId: _tournamentId,
-  matches,
+  matches: initialMatches,
 }: {
   tournamentId: string;
   matches: Matches;
 }) {
+  const [matches, setMatches] = useState(initialMatches);
   const [selected, setSelected] = useState<TMatch | null>(null);
   const router = useRouter();
+
+  function handleSaved({ matchId, status, homeScore, awayScore }: SaveResult) {
+    setMatches(prev => prev.map(m =>
+      m.id === matchId ? { ...m, status, homeScore, awayScore } : m
+    ));
+    router.refresh();
+  }
 
   const played    = matches.filter(m => m.status === "PLAYED");
   const live      = matches.filter(m => m.status === "LIVE");
@@ -142,7 +150,7 @@ export default function MatchesClient({
         <MatchModal
           match={selected}
           onClose={() => setSelected(null)}
-          onSaved={() => router.refresh()}
+          onSaved={handleSaved}
         />
       )}
     </PageContent>

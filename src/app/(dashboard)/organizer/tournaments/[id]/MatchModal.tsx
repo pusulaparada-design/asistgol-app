@@ -77,6 +77,13 @@ function playerLabel(p: TPlayer) {
   return p.number ? `#${p.number} ${p.name}` : p.name;
 }
 
+export type SaveResult = {
+  matchId: string;
+  status: "LIVE" | "PLAYED";
+  homeScore: number;
+  awayScore: number;
+};
+
 export default function MatchModal({
   match,
   onClose,
@@ -84,7 +91,7 @@ export default function MatchModal({
 }: {
   match: TMatch;
   onClose: () => void;
-  onSaved?: () => void;
+  onSaved?: (result: SaveResult) => void;
 }) {
   const [tab, setTab] = useState<"kadro" | "olaylar">("kadro");
   const [lineup, setLineup] = useState<{ home: Set<string>; away: Set<string> }>(() => ({
@@ -183,7 +190,7 @@ export default function MatchModal({
           homeLineup: Array.from(lineup.home),
           awayLineup: Array.from(lineup.away),
         });
-        onSaved?.();
+        onSaved?.({ matchId: match.id, status: "LIVE", homeScore, awayScore });
         onClose();
       } catch {
         setError("Kaydedilemedi, tekrar deneyin.");
@@ -208,7 +215,7 @@ export default function MatchModal({
             minute: e.minute ? parseInt(e.minute) : null,
           })),
         });
-        onSaved?.();
+        onSaved?.({ matchId: match.id, status: "PLAYED", homeScore, awayScore });
         onClose();
       } catch {
         setError("Kaydedilemedi, tekrar deneyin.");
