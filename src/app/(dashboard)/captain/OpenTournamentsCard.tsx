@@ -18,6 +18,10 @@ export default function OpenTournamentsCard({
 }) {
   const [modal, setModal] = useState<Tournament | null>(null);
 
+  const registeredTournamentIds = new Set(
+    myTeams.flatMap(team => team.registrations.map(r => r.tournament.id))
+  );
+
   return (
     <>
       {tournaments.length === 0 ? (
@@ -27,6 +31,7 @@ export default function OpenTournamentsCard({
           {tournaments.slice(0, 4).map((t) => {
             const approvedCount = t.registrations.length;
             const isFull = approvedCount >= t.maxTeams;
+            const alreadyRegistered = registeredTournamentIds.has(t.id);
             return (
               <div key={t.id} className="px-4 py-3">
                 <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -41,7 +46,7 @@ export default function OpenTournamentsCard({
                 </div>
                 <div className="text-xs text-[#9CA3AF] mb-2">{t.organizer.name} · {t.city}</div>
                 <ProgressBar value={approvedCount} max={t.maxTeams} color="gold" />
-                {!isFull && (
+                {!isFull && !alreadyRegistered && (
                   <div className="mt-2 flex justify-end">
                     <button
                       onClick={() => setModal(t)}
@@ -49,6 +54,11 @@ export default function OpenTournamentsCard({
                     >
                       Kayıt Ol →
                     </button>
+                  </div>
+                )}
+                {alreadyRegistered && (
+                  <div className="mt-2 flex justify-end">
+                    <span className="text-xs font-medium text-[#9CA3AF]">Kayıtlısınız ✓</span>
                   </div>
                 )}
               </div>

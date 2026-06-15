@@ -80,8 +80,8 @@ export default async function OrganizerDashboard() {
                       </div>
                       <div className="text-xs text-[#9CA3AF] mb-1.5">{t.city}</div>
                       <div className="flex items-center gap-2">
-                        <ProgressBar value={t._count.registrations} max={t.maxTeams} color="gold" />
-                        <span className="text-xs text-[#9CA3AF] shrink-0">{t._count.registrations}/{t.maxTeams}</span>
+                        <ProgressBar value={t.registrations.length} max={t.maxTeams} color="gold" />
+                        <span className="text-xs text-[#9CA3AF] shrink-0">{t.registrations.length}/{t.maxTeams}</span>
                       </div>
                     </div>
                   </Link>
@@ -99,7 +99,7 @@ export default async function OrganizerDashboard() {
               <div className="p-4 space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#6B7280]">Kayıtlı Takım</span>
-                  <span className="font-semibold text-[#111827]">{myTournaments[0]._count.registrations} / {myTournaments[0].maxTeams}</span>
+                  <span className="font-semibold text-[#111827]">{myTournaments[0].registrations.length} / {myTournaments[0].maxTeams}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-[#6B7280]">Şehir</span>

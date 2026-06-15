@@ -10,7 +10,9 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const FROM = `AsistGol <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
+// SMTP_FROM "Ad <adres>" veya düz "adres" olabilir; düz adresse AsistGol ismiyle sar.
+const FROM_RAW = process.env.SMTP_FROM || process.env.SMTP_USER || "";
+const FROM = FROM_RAW.includes("<") ? FROM_RAW : `AsistGol <${FROM_RAW}>`;
 
 // RFC 2606 rezerve TLD'ler ve sahte test uzantıları — bounce önlemek için atla
 const FAKE_TLDS = new Set([".test", ".example", ".invalid", ".localhost", ".local", ".internal"]);

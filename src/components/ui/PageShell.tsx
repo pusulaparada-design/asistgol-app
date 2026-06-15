@@ -56,17 +56,17 @@ export function CardHeader({
   );
 }
 
-// ─── Stat Card (Zahntec style) ─────────────────────────────────
+// ─── Stat Card ────────────────────────────────────────────────
 type StatColor = "blue" | "gold" | "green" | "red" | "orange" | "teal" | "purple";
 
-const statColorMap: Record<StatColor, { border: string; iconBg: string; iconColor: string }> = {
-  blue:   { border: "border-t-[#3B82F6]",  iconBg: "bg-[#EFF6FF]",  iconColor: "text-[#3B82F6]" },
-  gold:   { border: "border-t-[#F59E0B]",  iconBg: "bg-[#FEF3C7]",  iconColor: "text-[#F59E0B]" },
-  green:  { border: "border-t-[#10B981]",  iconBg: "bg-[#ECFDF5]",  iconColor: "text-[#10B981]" },
-  red:    { border: "border-t-[#EF4444]",  iconBg: "bg-[#FEF2F2]",  iconColor: "text-[#EF4444]" },
-  orange: { border: "border-t-[#F97316]",  iconBg: "bg-[#FFF7ED]",  iconColor: "text-[#F97316]" },
-  teal:   { border: "border-t-[#06B6D4]",  iconBg: "bg-[#ECFEFF]",  iconColor: "text-[#06B6D4]" },
-  purple: { border: "border-t-[#8B5CF6]",  iconBg: "bg-[#F5F3FF]",  iconColor: "text-[#8B5CF6]" },
+const statColorMap: Record<StatColor, { iconBg: string; iconColor: string; glow: string; accent: string }> = {
+  blue:   { iconBg: "bg-[#EFF6FF]",  iconColor: "text-[#3B82F6]",  glow: "bg-[#3B82F6]",  accent: "bg-[#3B82F6]" },
+  gold:   { iconBg: "bg-[#FEF9EC]",  iconColor: "text-[#D97706]",  glow: "bg-[#F59E0B]",  accent: "bg-[#F59E0B]" },
+  green:  { iconBg: "bg-[#ECFDF5]",  iconColor: "text-[#059669]",  glow: "bg-[#10B981]",  accent: "bg-[#10B981]" },
+  red:    { iconBg: "bg-[#FEF2F2]",  iconColor: "text-[#DC2626]",  glow: "bg-[#EF4444]",  accent: "bg-[#EF4444]" },
+  orange: { iconBg: "bg-[#FFF7ED]",  iconColor: "text-[#EA580C]",  glow: "bg-[#F97316]",  accent: "bg-[#F97316]" },
+  teal:   { iconBg: "bg-[#F0FDFE]",  iconColor: "text-[#0891B2]",  glow: "bg-[#06B6D4]",  accent: "bg-[#06B6D4]" },
+  purple: { iconBg: "bg-[#F5F3FF]",  iconColor: "text-[#7C3AED]",  glow: "bg-[#8B5CF6]",  accent: "bg-[#8B5CF6]" },
 };
 
 export function StatCard({
@@ -91,25 +91,31 @@ export function StatCard({
   const trendColor = trend === "up" ? "text-[#10B981]" : trend === "down" ? "text-[#EF4444]" : "text-[#9CA3AF]";
 
   return (
-    <div className={`bg-white rounded-xl border border-[#E5E7EB] border-t-4 ${c.border} shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-5`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className={`w-10 h-10 rounded-lg ${c.iconBg} flex items-center justify-center shrink-0`}>
-          <Icon size={20} className={c.iconColor} />
+    <div className="relative bg-white rounded-2xl border border-[#EBEBF0] shadow-[0_2px_12px_rgba(0,0,0,0.05)] p-5 overflow-hidden">
+      {/* Decorative blob */}
+      <div className={`absolute -right-5 -top-5 w-28 h-28 rounded-full opacity-[0.06] ${c.glow}`} />
+
+      <div className="relative flex flex-col gap-3">
+        <div className={`w-10 h-10 rounded-xl ${c.iconBg} flex items-center justify-center shadow-sm`}>
+          <Icon size={19} className={c.iconColor} />
         </div>
-        <div className="text-right">
-          <div className="text-3xl font-bold text-[#111827] leading-none">{value}</div>
-          {sublabel && <div className="text-xs text-[#9CA3AF] mt-1">{sublabel}</div>}
+
+        <div>
+          <div className="text-[2rem] font-bold text-[#111827] leading-none tracking-tight">{value}</div>
+          <div className="mt-1.5 text-sm font-medium text-[#374151]">{label}</div>
+          {sublabel && <div className="text-xs text-[#9CA3AF] mt-0.5">{sublabel}</div>}
         </div>
-      </div>
-      <div className="mt-3 flex items-center justify-between">
-        <span className="text-xs font-medium text-[#6B7280] uppercase tracking-wide">{label}</span>
+
         {trend && trendLabel && (
-          <div className={`flex items-center gap-1 text-xs font-medium ${trendColor}`}>
+          <div className={`flex items-center gap-1 text-xs font-semibold ${trendColor}`}>
             <TrendIcon size={12} />
             <span>{trendLabel}</span>
           </div>
         )}
       </div>
+
+      {/* Bottom accent */}
+      <div className={`absolute bottom-0 left-0 right-0 h-[3px] ${c.accent} opacity-70`} />
     </div>
   );
 }

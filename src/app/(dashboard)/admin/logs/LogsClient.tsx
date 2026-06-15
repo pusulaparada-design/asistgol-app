@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import React, { useState, useTransition } from "react";
 import { getAdminLogs } from "@/lib/actions/admin";
 import { ScrollText, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/PageShell";
@@ -137,9 +137,8 @@ export function LogsClient({ initialLogs, initialTotal }: { initialLogs: Log[]; 
               {logs.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-[#9CA3AF]">Log bulunamadı</td></tr>
               ) : logs.map(log => (
-                <>
+                <React.Fragment key={log.id}>
                   <tr
-                    key={log.id}
                     onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
                     className={`cursor-pointer hover:bg-[#F8FAFC] transition-colors ${rowBg[log.level]}`}
                   >
@@ -162,7 +161,7 @@ export function LogsClient({ initialLogs, initialTotal }: { initialLogs: Log[]; 
                     <td className="px-3 py-2.5 text-[11px] text-[#9CA3AF] font-mono">{log.ip ?? "—"}</td>
                   </tr>
                   {expandedId === log.id && log.details && (
-                    <tr key={`${log.id}-detail`} className="bg-[#F8FAFC]">
+                    <tr className="bg-[#F8FAFC]">
                       <td colSpan={6} className="px-4 py-3">
                         <div className="flex items-center gap-2 mb-1">
                           <ScrollText size={12} className="text-[#9CA3AF]" />
@@ -174,7 +173,7 @@ export function LogsClient({ initialLogs, initialTotal }: { initialLogs: Log[]; 
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>

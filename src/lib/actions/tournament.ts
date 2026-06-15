@@ -130,7 +130,13 @@ export async function createTournament(data: {
 // ─── Turnuva bilgilerini güncelle (başlamadan önce) ──────────
 export async function updateTournamentDetails(
   id: string,
-  data: { name: string; description: string; venue: string; startDate: string; endDate: string; fee: string; prize: string }
+  data: {
+    name: string; description: string; venue: string;
+    startDate: string; endDate: string; fee: string; prize: string;
+    yellowCardLimit: number; trackGoals: boolean; trackCards: boolean;
+    winPoints: number; thirdPlace: boolean; extraTime: boolean;
+    groupCount: number; advanceCount: number;
+  }
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await getSession();
   if (!session) return { ok: false, error: "Yetkisiz." };
@@ -155,6 +161,14 @@ export async function updateTournamentDetails(
       endDate: data.endDate ? new Date(data.endDate + "T12:00:00") : null,
       fee: data.fee ? Number(data.fee) : null,
       prize: data.prize.trim() || null,
+      yellowCardLimit: data.yellowCardLimit,
+      trackGoals: data.trackGoals,
+      trackCards: data.trackCards,
+      winPoints: data.winPoints,
+      thirdPlace: data.thirdPlace,
+      extraTime: data.extraTime,
+      groupCount: data.groupCount,
+      advanceCount: data.advanceCount,
     },
   });
 

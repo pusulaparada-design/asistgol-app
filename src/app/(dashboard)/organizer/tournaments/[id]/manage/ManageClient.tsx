@@ -283,87 +283,163 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
   );
 }
 
+function Toggle({ label, sublabel, checked, onChange, disabled }: {
+  label: string; sublabel?: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2.5 border-b border-[#F3F4F6] last:border-0">
+      <div>
+        <span className="text-sm text-[#374151]">{label}</span>
+        {sublabel && <span className="text-xs text-[#9CA3AF] ml-2">{sublabel}</span>}
+      </div>
+      <button type="button" disabled={disabled} onClick={() => !disabled && onChange(!checked)}
+        className={`relative w-10 h-5 rounded-full transition-colors ${checked ? "bg-[#0F1F47]" : "bg-[#E5E7EB]"} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}>
+        <span className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all" style={{ left: checked ? "22px" : "2px" }} />
+      </button>
+    </div>
+  );
+}
+
 function TournamentInfoTab({ tournament, tournamentId }: { tournament: Tournament; tournamentId: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [name, setName] = useState(tournament.name);
+
+  const [name, setName]               = useState(tournament.name);
   const [description, setDescription] = useState(tournament.description ?? "");
-  const [venue, setVenue] = useState(tournament.venue ?? "");
-  const [startDate, setStartDate] = useState(toDateInput(tournament.startDate));
-  const [endDate, setEndDate] = useState(toDateInput(tournament.endDate));
-  const [fee, setFee] = useState(tournament.fee?.toString() ?? "");
-  const [prize, setPrize] = useState(tournament.prize ?? "");
+  const [venue, setVenue]             = useState(tournament.venue ?? "");
+  const [startDate, setStartDate]     = useState(toDateInput(tournament.startDate));
+  const [endDate, setEndDate]         = useState(toDateInput(tournament.endDate));
+  const [fee, setFee]                 = useState(tournament.fee?.toString() ?? "");
+  const [prize, setPrize]             = useState(tournament.prize ?? "");
+  const [yellowCardLimit, setYellowCardLimit] = useState(tournament.yellowCardLimit ?? 3);
+  const [trackGoals, setTrackGoals]   = useState(tournament.trackGoals ?? true);
+  const [trackCards, setTrackCards]   = useState(tournament.trackCards ?? true);
+  const [winPoints, setWinPoints]     = useState(tournament.winPoints ?? 3);
+  const [thirdPlace, setThirdPlace]   = useState(tournament.thirdPlace ?? true);
+  const [extraTime, setExtraTime]     = useState(tournament.extraTime ?? true);
+  const [groupCount, setGroupCount]   = useState(tournament.groupCount ?? 4);
+  const [advanceCount, setAdvanceCount] = useState(tournament.advanceCount ?? 2);
 
   const isLocked = tournament.status === "ACTIVE" || tournament.status === "COMPLETED";
+  const dis = isLocked ? " bg-[#F9FAFB] text-[#9CA3AF]" : "";
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
     startTransition(async () => {
-      const result = await updateTournamentDetails(tournamentId, { name, description, venue, startDate, endDate, fee, prize });
+      const result = await updateTournamentDetails(tournamentId, {
+        name, description, venue, startDate, endDate, fee, prize,
+        yellowCardLimit, trackGoals, trackCards, winPoints, thirdPlace, extraTime, groupCount, advanceCount,
+      });
       setMsg(result.ok
-        ? { ok: true, text: "Turnuva bilgileri güncellendi." }
+        ? { ok: true, text: "Turnuva ayarları güncellendi." }
         : { ok: false, text: (result as { ok: false; error: string }).error });
       if (result.ok) router.refresh();
     });
   }
 
   return (
-    <Card>
+    <form onSubmit={handleSave} className="space-y-4">
       {isLocked && (
-        <div className="px-5 py-3 bg-[#FEF3C7] border-b border-[#FCD34D] text-xs text-[#92400E] flex items-center gap-2">
+        <div className="px-5 py-3 bg-[#FEF3C7] border border-[#FCD34D] rounded-xl text-xs text-[#92400E] flex items-center gap-2">
           <Info size={13} className="shrink-0" />
-          Turnuva başladığı için bilgiler düzenlenemez.
+          Turnuva başladığı için ayarlar düzenlenemez.
         </div>
       )}
-      <form onSubmit={handleSave} className="p-5 space-y-4">
-        <div>
-          <label className="block text-xs font-medium text-[#374151] mb-1.5">Turnuva Adı *</label>
-          <input value={name} onChange={e => setName(e.target.value)} disabled={isLocked}
-            className={inputCls + (isLocked ? " bg-[#F9FAFB] text-[#9CA3AF]" : "")} />
+
+      <Card>
+        <div className="px-5 py-3 border-b border-[#F3F4F6]">
+          <h3 className="text-sm font-semibold text-[#111827]">Temel Bilgiler</h3>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-[#374151] mb-1.5">Kurallar / Açıklama</label>
-          <textarea rows={5} value={description} onChange={e => setDescription(e.target.value)} disabled={isLocked}
-            className={inputCls + " resize-none" + (isLocked ? " bg-[#F9FAFB] text-[#9CA3AF]" : "")}
-            placeholder="Turnuva kuralları, katılım koşulları..." />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-5 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-[#374151] mb-1.5">Saha Adı</label>
-            <input value={venue} onChange={e => setVenue(e.target.value)} disabled={isLocked}
-              className={inputCls + (isLocked ? " bg-[#F9FAFB] text-[#9CA3AF]" : "")} placeholder="Yıldız Halı Saha" />
+            <label className="block text-xs font-medium text-[#374151] mb-1.5">Turnuva Adı *</label>
+            <input value={name} onChange={e => setName(e.target.value)} disabled={isLocked} className={inputCls + dis} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-[#374151] mb-1.5">Kayıt Ücreti (₺)</label>
-            <input type="number" value={fee} onChange={e => setFee(e.target.value)} disabled={isLocked}
-              className={inputCls + (isLocked ? " bg-[#F9FAFB] text-[#9CA3AF]" : "")} placeholder="0" />
+            <label className="block text-xs font-medium text-[#374151] mb-1.5">Kurallar / Açıklama</label>
+            <textarea rows={4} value={description} onChange={e => setDescription(e.target.value)} disabled={isLocked}
+              className={inputCls + " resize-none" + dis} placeholder="Turnuva kuralları, katılım koşulları..." />
           </div>
-          <DateField label="Başlangıç Tarihi" value={startDate} onChange={setStartDate} />
-          <DateField label="Bitiş Tarihi" value={endDate} onChange={setEndDate} />
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-[#374151] mb-1.5">Ödül / Kupa Bilgisi</label>
-            <input value={prize} onChange={e => setPrize(e.target.value)} disabled={isLocked}
-              className={inputCls + (isLocked ? " bg-[#F9FAFB] text-[#9CA3AF]" : "")} placeholder="₺5.000 veya Kupa" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-[#374151] mb-1.5">Saha Adı</label>
+              <input value={venue} onChange={e => setVenue(e.target.value)} disabled={isLocked} className={inputCls + dis} placeholder="Yıldız Halı Saha" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#374151] mb-1.5">Kayıt Ücreti (₺)</label>
+              <input type="number" value={fee} onChange={e => setFee(e.target.value)} disabled={isLocked} className={inputCls + dis} placeholder="0" />
+            </div>
+            <DateField label="Başlangıç Tarihi" value={startDate} onChange={setStartDate} />
+            <DateField label="Bitiş Tarihi" value={endDate} onChange={setEndDate} />
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-[#374151] mb-1.5">Ödül / Kupa Bilgisi</label>
+              <input value={prize} onChange={e => setPrize(e.target.value)} disabled={isLocked} className={inputCls + dis} placeholder="₺5.000 veya Kupa" />
+            </div>
           </div>
         </div>
+      </Card>
 
-        {msg && (
-          <p className={`text-xs rounded-lg px-3 py-2 border flex items-center gap-2 ${msg.ok ? "text-[#059669] bg-[#ECFDF5] border-[#A7F3D0]" : "text-[#EF4444] bg-[#FEF2F2] border-[#FECACA]"}`}>
-            {msg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}
-            {msg.text}
-          </p>
-        )}
+      <Card>
+        <div className="px-5 py-3 border-b border-[#F3F4F6]">
+          <h3 className="text-sm font-semibold text-[#111827]">Format & Kurallar</h3>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-[#374151] mb-1.5">Grup Sayısı</label>
+              <select value={groupCount} onChange={e => setGroupCount(+e.target.value)} disabled={isLocked}
+                className={inputCls + dis + " bg-white"}>
+                {[1,2,3,4,5,6,8].map(n => <option key={n} value={n}>{n} grup</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#374151] mb-1.5">Gruptan Çıkan</label>
+              <select value={advanceCount} onChange={e => setAdvanceCount(+e.target.value)} disabled={isLocked}
+                className={inputCls + dis + " bg-white"}>
+                {[1,2,3,4].map(n => <option key={n} value={n}>İlk {n} takım</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#374151] mb-1.5">Galibiyet Puanı</label>
+              <select value={winPoints} onChange={e => setWinPoints(+e.target.value)} disabled={isLocked}
+                className={inputCls + dis + " bg-white"}>
+                <option value={3}>3 puan</option>
+                <option value={2}>2 puan</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#374151] mb-1.5">Sarı Kart Cezası</label>
+              <select value={yellowCardLimit} onChange={e => setYellowCardLimit(+e.target.value)} disabled={isLocked || !trackCards}
+                className={inputCls + (isLocked || !trackCards ? " bg-[#F9FAFB] text-[#9CA3AF]" : "") + " bg-white"}>
+                {[2,3,4,5].map(n => <option key={n} value={n}>{n}. sarı kartta</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <Toggle label="Golcü istatistiği takibi" checked={trackGoals} onChange={setTrackGoals} disabled={isLocked} />
+            <Toggle label="Sarı / Kırmızı kart takibi" checked={trackCards} onChange={setTrackCards} disabled={isLocked} />
+            <Toggle label="Uzatma / Penaltı" sublabel="beraberlik durumunda" checked={extraTime} onChange={setExtraTime} disabled={isLocked} />
+            <Toggle label="Üçüncülük maçı" checked={thirdPlace} onChange={setThirdPlace} disabled={isLocked} />
+          </div>
+        </div>
+      </Card>
 
-        {!isLocked && (
-          <button type="submit" disabled={isPending}
-            className="bg-[#0F1F47] text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-[#1A2F5A] transition-colors disabled:opacity-60">
-            {isPending ? "Kaydediliyor..." : "Kaydet"}
-          </button>
-        )}
-      </form>
-    </Card>
+      {msg && (
+        <p className={`text-xs rounded-lg px-3 py-2 border flex items-center gap-2 ${msg.ok ? "text-[#059669] bg-[#ECFDF5] border-[#A7F3D0]" : "text-[#EF4444] bg-[#FEF2F2] border-[#FECACA]"}`}>
+          {msg.ok ? <CheckCircle size={13} /> : <XCircle size={13} />}
+          {msg.text}
+        </p>
+      )}
+
+      {!isLocked && (
+        <button type="submit" disabled={isPending}
+          className="bg-[#0F1F47] text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-[#1A2F5A] transition-colors disabled:opacity-60">
+          {isPending ? "Kaydediliyor..." : "Ayarları Kaydet"}
+        </button>
+      )}
+    </form>
   );
 }
 
