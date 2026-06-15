@@ -128,6 +128,18 @@ export async function createTournament(data: {
 }
 
 // ─── Turnuva bilgilerini güncelle (başlamadan önce) ──────────
+export async function saveSchedule(
+  id: string,
+  schedule: unknown,
+): Promise<void> {
+  const session = await getSession();
+  if (!session) return;
+  const tournament = await prisma.tournament.findUnique({ where: { id }, select: { organizerId: true } });
+  if (!tournament) return;
+  if (session.role !== "ADMIN" && tournament.organizerId !== session.userId) return;
+  await prisma.tournament.update({ where: { id }, data: { schedule: schedule as never } });
+}
+
 export async function updateTournamentDetails(
   id: string,
   data: {

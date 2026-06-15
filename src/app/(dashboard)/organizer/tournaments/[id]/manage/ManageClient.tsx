@@ -17,6 +17,7 @@ import {
   getGroupsWithTeams,
   getTournament,
   updateTournamentDetails,
+  saveSchedule,
 } from "@/lib/actions/tournament";
 import MatchModal, { type SaveResult } from "../MatchModal";
 import GroupsTab from "./GroupsTab";
@@ -460,10 +461,21 @@ export default function ManageClient({
   const [tab, setTab] = useState<Tab>("matches");
   const [localMatches, setLocalMatches] = useState(matches);
   const [scoreMatch, setScoreMatch] = useState<TMatch | null>(null);
-  const [matchWeeks, setMatchWeeks] = useState<MatchWeek[]>([]);
+  const [matchWeeks, setMatchWeeks] = useState<MatchWeek[]>(() => {
+    try { return (tournament.schedule as unknown as MatchWeek[]) ?? []; } catch { return []; }
+  });
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
 
   useEffect(() => { setLocalMatches(matches); }, [matches]);
+
+  function handleWeeksChange(weeks: MatchWeek[]) {
+    setMatchWeeks(weeks);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveSchedule(tournamentId, weeks).catch(() => {});
+    }, 1000);
+  }
 
   function handleSaved(result: SaveResult) {
     setLocalMatches(prev => prev.map(m =>
@@ -525,7 +537,7 @@ export default function ManageClient({
         <GroupsTab groups={groups} registrations={registrations} tournamentId={tournamentId} />
       )}
       {tab === "schedule" && (
-        <ScheduleTab weeks={matchWeeks} onChange={setMatchWeeks} />
+        <ScheduleTab weeks={matchWeeks} onChange={handleWeeksChange} />
       )}
       {tab === "fixture" && (
         <FixtureTab

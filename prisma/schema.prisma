@@ -63,6 +63,7 @@ model Tournament {
   yellowCardLimit Int         @default(3)
   thirdPlace      Boolean     @default(true)
   extraTime       Boolean     @default(true)
+  schedule        Json?
 
   organizerId String
   organizer   User   @relation("OrganizerTournaments", fields: [organizerId], references: [id])
