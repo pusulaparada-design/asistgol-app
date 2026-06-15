@@ -101,7 +101,10 @@ function calcStandings(
     else { home.draws++; home.points++; away.draws++; away.points++; }
   }
   return rows.sort((a, b) =>
-    b.points - a.points || (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst),
+    b.points - a.points ||
+    (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst) ||
+    b.goalsFor - a.goalsFor ||
+    a.team.name.localeCompare(b.team.name, "tr"),
   );
 }
 

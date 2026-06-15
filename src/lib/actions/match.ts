@@ -135,8 +135,8 @@ export async function getStandings(tournamentId: string) {
       return { team, p, w, d, l, gf, ga, av: gf - ga, pts };
     });
 
-    // Sırala: puan → averaj → gol
-    standings.sort((a, b) => b.pts - a.pts || b.av - a.av || b.gf - a.gf);
+    // Sırala: puan → averaj → gol → isim (alfabetik)
+    standings.sort((a, b) => b.pts - a.pts || b.av - a.av || b.gf - a.gf || a.team.name.localeCompare(b.team.name, "tr"));
     return { group: group.name, advance: tournament?.advanceCount ?? 2, standings };
   });
 }
