@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Play, Save, AlertTriangle, CheckCircle, RefreshCw, Calendar, Zap } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/PageShell";
@@ -448,18 +448,27 @@ function buildFinalPair(sfMatches: TMatch[]): KOPair[] {
 }
 
 /* ── Eleme oluşturucu bileşeni ──────────────────────────────────── */
+const ROUND_TO_WEEK_LABEL: Record<string, string> = {
+  QUARTER_FINAL: "Çeyrek Final",
+  SEMI_FINAL:    "Yarı Final",
+  FINAL:         "Final",
+  THIRD_PLACE:   "3. Yer Maçı",
+};
+
 function KnockoutSection({
   groups,
   matches,
   advanceCount,
   winPoints,
   tournamentId,
+  matchWeeks,
 }: {
   groups: Groups;
   matches: TMatch[];
   advanceCount: number;
   winPoints: number;
   tournamentId: string;
+  matchWeeks: MatchWeek[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -495,6 +504,29 @@ function KnockoutSection({
     : pendingRound === "SEMI_FINAL" ? qfComplete
     : pendingRound === "FINAL" ? (sfComplete || (qfComplete && qfMatches.length <= 2))
     : false;
+
+  // Schedule'dan tarih/saat otomatik doldur
+  useEffect(() => {
+    if (!pendingRound) return;
+    const weekLabel = ROUND_TO_WEEK_LABEL[pendingRound];
+    const week = matchWeeks.find(w => w.label === weekLabel);
+    if (!week) return;
+    const slots: { date: string; time: string }[] = [];
+    for (const day of [...week.days].sort((a, b) => a.date.localeCompare(b.date))) {
+      for (const time of [...day.times].sort()) {
+        slots.push({ date: day.date, time });
+      }
+    }
+    setDates(prev => {
+      const next = { ...prev };
+      pairs.forEach((_, i) => {
+        const key = `${pendingRound}-${i}`;
+        if (!next[key] && slots[i]) next[key] = slots[i];
+      });
+      return next;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingRound, matchWeeks]);
 
   function setDate(key: string, field: "date" | "time", val: string) {
     setDates((prev) => {
@@ -705,6 +737,7 @@ export default function FixtureTab({
           advanceCount={advanceCount}
           winPoints={winPoints}
           tournamentId={tournamentId}
+          matchWeeks={matchWeeks}
         />
       )}
 
