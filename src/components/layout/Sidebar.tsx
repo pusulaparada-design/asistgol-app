@@ -1,7 +1,7 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { LucideIcon, LayoutDashboard, Trophy, Users, Calendar, BarChart2, Bell, Settings, ShieldCheck, Swords, UserCircle, Megaphone, Star, LogOut, X } from "lucide-react";
+import { LucideIcon, LayoutDashboard, Trophy, Users, Calendar, BarChart2, Bell, Settings, ShieldCheck, Swords, UserCircle, Megaphone, Star, LogOut, X, ScrollText } from "lucide-react";
 import { Logo } from "./Logo";
 import { NotificationBadge } from "./NotificationBadge";
 import type { Role } from "@prisma/client";
@@ -28,6 +28,7 @@ const adminNav: NavGroup[] = [
     group: "RAPORLAR",
     items: [
       { label: "İstatistikler", href: "/admin/stats", icon: BarChart2 },
+      { label: "Loglar", href: "/admin/logs", icon: ScrollText },
     ],
   },
   {

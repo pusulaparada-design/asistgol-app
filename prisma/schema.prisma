@@ -354,6 +354,39 @@ model Notification {
   @@index([userId, read])
 }
 
+// ─── Sistem Logu ─────────────────────────────────────────────────
+model Log {
+  id        String      @id @default(cuid())
+  level     LogLevel    @default(INFO)
+  category  LogCategory
+  message   String
+  userId    String?
+  userEmail String?
+  userName  String?
+  userRole  String?
+  ip        String?
+  details   String?
+  createdAt DateTime    @default(now())
+
+  @@index([level])
+  @@index([category])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+enum LogLevel {
+  INFO
+  WARN
+  ERROR
+}
+
+enum LogCategory {
+  AUTH
+  ACTION
+  ERROR
+  SYSTEM
+}
+
 // ─── Duyuru ──────────────────────────────────────────────────────
 model Announcement {
   id      String @id @default(cuid())

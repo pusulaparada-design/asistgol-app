@@ -11,6 +11,7 @@ import {
   sendRescheduleEmail,
 } from "@/lib/email";
 import { sendWeeklySummaryForRound } from "./summary";
+import { logAction, logError } from "@/lib/logger";
 
 // ─── Turnuvaları listele ──────────────────────────────────────
 export async function getTournaments(organizerId?: string) {
@@ -122,6 +123,7 @@ export async function createTournament(data: {
   }
 
   revalidatePath("/organizer/tournaments");
+  logAction(session, `Turnuva oluşturuldu: ${data.name}`, { tournamentId: tournament.id, city: data.city, format: data.format }).catch(() => {});
   return tournament;
 }
 
@@ -310,6 +312,10 @@ export async function saveMatchScore(data: {
     if (allPlayed) {
       sendWeeklySummaryForRound(match.tournament.id, match.round).catch(() => {});
     }
+  }
+
+  if (data.finished) {
+    logAction(session, `Maç skoru girildi: ${match.homeTeam.name} ${data.homeScore}–${data.awayScore} ${match.awayTeam.name}`, { matchId: data.matchId, tournamentId: match.tournament.id }).catch(() => {});
   }
 
   // ── Otomatik ceza hesaplama ──────────────────────────────
@@ -501,6 +507,7 @@ export async function approveRegistration(regId: string) {
       tournamentId: reg.tournament.id,
     }).catch(() => {});
   }
+  logAction(session, `Kayıt onaylandı: ${reg.team.name} → ${reg.tournament.name}`, { regId, teamId: reg.teamId, tournamentId: reg.tournamentId }).catch(() => {});
   return { ok: true };
 }
 
@@ -535,6 +542,7 @@ export async function rejectRegistration(regId: string) {
       tournamentName: reg.tournament.name,
     }).catch(() => {});
   }
+  logAction(session, `Kayıt reddedildi: ${reg.team.name} → ${reg.tournament.name}`, { regId, teamId: reg.teamId, tournamentId: reg.tournamentId }).catch(() => {});
   return { ok: true };
 }
 

@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "./notification";
 import { sendNewRegistrationEmail } from "@/lib/email";
+import { logAction } from "@/lib/logger";
 
 // ─── Takım oluştur ────────────────────────────────────────────
 export async function createTeam(data: {
@@ -35,6 +36,7 @@ export async function createTeam(data: {
   });
 
   revalidatePath("/captain/my-teams");
+  logAction(session, `Takım oluşturuldu: ${data.name}`, { teamId: team.id }).catch(() => {});
   return team;
 }
 
@@ -127,6 +129,9 @@ export async function registerTeamToTournament(teamId: string, tournamentId: str
   revalidatePath("/captain/registrations");
   revalidatePath("/captain/tournaments");
   revalidatePath("/captain");
+  if (team && tournament) {
+    logAction(session, `Turnuvaya başvuruldu: ${team.name} → ${tournament.name}`, { teamId, tournamentId }).catch(() => {});
+  }
   return reg;
 }
 
@@ -161,9 +166,11 @@ export async function updatePlayerStatus(
   const session = await getSession();
   if (!session || session.role !== "ORGANIZER") throw new Error("Yetkisiz.");
 
+  const player = await prisma.player.findUnique({ where: { id: playerId }, select: { name: true } });
   await prisma.player.update({ where: { id: playerId }, data: { status } });
   revalidatePath(`/organizer/tournaments/${tournamentId}/penalties`);
   revalidatePath(`/organizer/tournaments/${tournamentId}`);
+  logAction(session, `Oyuncu durumu değiştirildi: ${player?.name ?? playerId} → ${status}`, { playerId, tournamentId }).catch(() => {});
 }
 
 // ─── Otomatik cezayı sıfırla (organizatör) ───────────────────
@@ -171,11 +178,13 @@ export async function clearPlayerSuspension(playerId: string, tournamentId: stri
   const session = await getSession();
   if (!session || session.role !== "ORGANIZER") throw new Error("Yetkisiz.");
 
+  const player = await prisma.player.findUnique({ where: { id: playerId }, select: { name: true } });
   await prisma.playerSuspension.updateMany({
     where: { playerId, tournamentId },
     data: { remainingMatches: 0 },
   });
   revalidatePath(`/organizer/tournaments/${tournamentId}/penalties`);
+  logAction(session, `Ceza kaldırıldı: ${player?.name ?? playerId}`, { playerId, tournamentId }).catch(() => {});
 }
 
 // ─── Oyuncu çıkar ─────────────────────────────────────────────

@@ -2,7 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import type { MatchStatus } from "@prisma/client";
+import type { MatchStatus, LogLevel, LogCategory } from "@prisma/client";
 
 // ─── Platform istatistikleri ──────────────────────────────────
 export async function getPlatformStats() {
@@ -388,3 +388,32 @@ export async function getPlatformTopScorers() {
     return { player, goals: g._count.playerId };
   });
 }
+
+// ─── Sistem logları (sadece admin) ───────────────────────────
+export async function getAdminLogs(opts?: {
+  level?: string;
+  category?: string;
+  limit?: number;
+  skip?: number;
+}) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") throw new Error("Yetkisiz.");
+
+  const where = {
+    ...(opts?.level && opts.level !== "ALL"     ? { level: opts.level as LogLevel } : {}),
+    ...(opts?.category && opts.category !== "ALL" ? { category: opts.category as LogCategory } : {}),
+  };
+
+  const [logs, total] = await Promise.all([
+    prisma.log.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: opts?.limit ?? 100,
+      skip: opts?.skip ?? 0,
+    }),
+    prisma.log.count({ where }),
+  ]);
+
+  return { logs, total };
+}
+
