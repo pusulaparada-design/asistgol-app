@@ -150,6 +150,26 @@ export async function getLiveCounts() {
   return { liveMatches, registrationTournaments };
 }
 
+// ─── Takım adını değiştir (admin) ─────────────────────────────
+export async function updateTeamName(
+  id: string,
+  name: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") return { ok: false, error: "Yetkiniz yok." };
+
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, error: "Takım adı boş olamaz." };
+
+  const target = await prisma.team.findUnique({ where: { id }, select: { id: true } });
+  if (!target) return { ok: false, error: "Takım bulunamadı." };
+
+  await prisma.team.update({ where: { id }, data: { name: trimmed } });
+
+  revalidatePath("/admin/teams");
+  return { ok: true };
+}
+
 // ─── Tüm takımlar (admin) ─────────────────────────────────────
 export async function getAllTeams() {
   return prisma.team.findMany({

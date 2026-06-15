@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Users, ChevronDown, ChevronUp, Shirt } from "lucide-react";
+import { useState, useTransition, useRef, useEffect } from "react";
+import { Users, ChevronDown, ChevronUp, Shirt, Pencil, Check, X } from "lucide-react";
 import { PageContent, PageHeader, Card } from "@/components/ui/PageShell";
 import type { getAllTeams } from "@/lib/actions/admin";
+import { updateTeamName } from "@/lib/actions/admin";
 
 type Teams = Awaited<ReturnType<typeof getAllTeams>>;
 type Team = Teams[number];
@@ -24,20 +25,94 @@ const STATUS_LABEL: Record<string, string> = {
 
 function TeamRow({ team }: { team: Team }) {
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [nameVal, setNameVal] = useState(team.name);
+  const [displayName, setDisplayName] = useState(team.name);
+  const [err, setErr] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  function startEdit(e: React.MouseEvent) {
+    e.stopPropagation();
+    setNameVal(displayName);
+    setErr(null);
+    setEditing(true);
+  }
+
+  function cancel(e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditing(false);
+    setErr(null);
+  }
+
+  function save(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (nameVal.trim() === displayName) { setEditing(false); return; }
+    startTransition(async () => {
+      const result = await updateTeamName(team.id, nameVal);
+      if (result.ok) {
+        setDisplayName(nameVal.trim());
+        setEditing(false);
+        setErr(null);
+      } else {
+        setErr((result as { ok: false; error: string }).error);
+      }
+    });
+  }
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") save(e as unknown as React.MouseEvent);
+    if (e.key === "Escape") { setEditing(false); setErr(null); }
+  }
 
   return (
     <>
       <tr
         className="hover:bg-[#FAFAFA] transition-colors cursor-pointer select-none"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => !editing && setOpen((o) => !o)}
       >
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-[#EFF6FF] rounded-lg flex items-center justify-center shrink-0">
               <Users size={13} className="text-[#3B82F6]" />
             </div>
-            <div>
-              <div className="text-sm font-semibold text-[#111827]">{team.name}</div>
+            <div className="flex-1 min-w-0">
+              {editing ? (
+                <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                  <input
+                    ref={inputRef}
+                    value={nameVal}
+                    onChange={e => setNameVal(e.target.value)}
+                    onKeyDown={onKeyDown}
+                    className="text-sm font-semibold border border-[#F59E0B] rounded px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 w-40"
+                    disabled={isPending}
+                  />
+                  <button onClick={save} disabled={isPending}
+                    className="text-[#059669] hover:text-[#047857] disabled:opacity-50">
+                    <Check size={15} />
+                  </button>
+                  <button onClick={cancel} disabled={isPending}
+                    className="text-[#EF4444] hover:text-[#DC2626] disabled:opacity-50">
+                    <X size={15} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 group">
+                  <span className="text-sm font-semibold text-[#111827]">{displayName}</span>
+                  <button
+                    onClick={startEdit}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-[#9CA3AF] hover:text-[#0F1F47]"
+                    title="Adı değiştir"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                </div>
+              )}
+              {err && <div className="text-[10px] text-[#EF4444] mt-0.5">{err}</div>}
               <div className="text-xs text-[#9CA3AF]">Kpt: {team.captain.name}</div>
             </div>
           </div>
