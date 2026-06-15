@@ -447,6 +447,68 @@ function buildFinalPair(sfMatches: TMatch[]): KOPair[] {
   return [{ homeId: w1.id, homeName: w1.name, awayId: w2.id, awayName: w2.name }];
 }
 
+/* ── Planlanan eleme takvimi ──────────────────────────────────── */
+const KO_SCHED_LABELS = ["Çeyrek Final", "Yarı Final", "Final", "3. Yer Maçı"];
+const LABEL_TO_ROUND: Record<string, string> = {
+  "Çeyrek Final": "QUARTER_FINAL",
+  "Yarı Final":   "SEMI_FINAL",
+  "Final":        "FINAL",
+  "3. Yer Maçı":  "THIRD_PLACE",
+};
+const TR_MONTHS_S = ["Oca","Şub","Mar","Nis","May","Haz","Tem","Ağu","Eyl","Eki","Kas","Ara"];
+function fmtShort(d: string) {
+  const dt = new Date(d + "T12:00:00");
+  return `${dt.getDate()} ${TR_MONTHS_S[dt.getMonth()]}`;
+}
+
+function PlannedKnockoutCalendar({ matchWeeks, kMatches }: { matchWeeks: MatchWeek[]; kMatches: TMatch[] }) {
+  const weeks = matchWeeks.filter(w => KO_SCHED_LABELS.includes(w.label));
+  if (weeks.length === 0) return null;
+
+  return (
+    <Card>
+      <div className="px-5 py-3 border-b border-[#E5E7EB]">
+        <h3 className="text-sm font-semibold text-[#111827]">Planlanan Eleme Takvimi</h3>
+        <p className="text-xs text-[#9CA3AF] mt-0.5">Maç Günleri sekmesinde belirlenen tarihler</p>
+      </div>
+      <div className="divide-y divide-[#F3F4F6]">
+        {weeks.map(week => {
+          const round = LABEL_TO_ROUND[week.label];
+          const created = kMatches.filter(m => m.round === round);
+          const slots = week.days
+            .slice().sort((a, b) => a.date.localeCompare(b.date))
+            .flatMap(d => d.times.slice().sort().map(t => ({ date: d.date, time: t })));
+
+          return (
+            <div key={week.id} className="px-5 py-3 flex items-start gap-4">
+              <div className="w-28 shrink-0">
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${
+                  created.length > 0 ? "bg-[#ECFDF5] text-[#059669]" : "bg-[#EFF6FF] text-[#2563EB]"
+                }`}>{week.label}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                {created.length > 0 ? (
+                  <span className="text-xs text-[#059669] font-medium">✓ {created.length} maç oluşturuldu</span>
+                ) : slots.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {slots.map((s, i) => (
+                      <span key={i} className="text-xs bg-[#F8FAFC] border border-[#E5E7EB] rounded-lg px-2 py-0.5 text-[#374151]">
+                        {fmtShort(s.date)} — {s.time}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-[#D1D5DB]">Tarih girilmedi</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 /* ── Eleme oluşturucu bileşeni ──────────────────────────────────── */
 const ROUND_TO_WEEK_LABEL: Record<string, string> = {
   QUARTER_FINAL: "Çeyrek Final",
@@ -729,16 +791,22 @@ export default function FixtureTab({
       {/* Mevcut fikstür (düzenlenebilir) */}
       {hasMatches && <EditableFixture matches={matches} tournamentId={tournamentId} />}
 
-      {/* Eleme maçları */}
+      {/* Planlanan eleme takvimi + oluşturucu */}
       {advanceCount > 0 && (
-        <KnockoutSection
-          groups={groups}
-          matches={matches}
-          advanceCount={advanceCount}
-          winPoints={winPoints}
-          tournamentId={tournamentId}
-          matchWeeks={matchWeeks}
-        />
+        <>
+          <PlannedKnockoutCalendar
+            matchWeeks={matchWeeks}
+            kMatches={matches.filter(m => !m.groupId && m.round)}
+          />
+          <KnockoutSection
+            groups={groups}
+            matches={matches}
+            advanceCount={advanceCount}
+            winPoints={winPoints}
+            tournamentId={tournamentId}
+            matchWeeks={matchWeeks}
+          />
+        </>
       )}
 
       {/* Fikstür oluşturucu */}

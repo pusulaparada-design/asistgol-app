@@ -823,8 +823,64 @@ export async function rescheduleMatches(
   if (notifs.length > 0) await createNotifications(notifs);
   await Promise.allSettled(emailJobs);
 
+  // Eleme maçı tarih değişikliklerini schedule'a geri yaz
+  const hasKnockout = affectedMatches.some(m => !m.groupId);
+  if (hasKnockout) await syncKnockoutSchedule(tournamentId);
+
   revalidatePath(`/organizer/tournaments/${tournamentId}/manage`);
   revalidatePath(`/captain/schedule`);
 
   return { ok: true };
+}
+
+async function syncKnockoutSchedule(tournamentId: string) {
+  const ROUND_TO_LABEL: Record<string, string> = {
+    QUARTER_FINAL: "Çeyrek Final",
+    SEMI_FINAL:    "Yarı Final",
+    FINAL:         "Final",
+    THIRD_PLACE:   "3. Yer Maçı",
+  };
+
+  const [tournament, knockoutMatches] = await Promise.all([
+    prisma.tournament.findUnique({ where: { id: tournamentId }, select: { schedule: true } }),
+    prisma.match.findMany({
+      where: { tournamentId, groupId: null, round: { not: null } },
+      select: { round: true, date: true, time: true },
+      orderBy: [{ date: "asc" }, { time: "asc" }],
+    }),
+  ]);
+
+  if (!tournament?.schedule) return;
+
+  type WeekEntry = { id: string; label: string; days: { id: string; date: string; times: string[] }[] };
+  const schedule = tournament.schedule as WeekEntry[];
+
+  const byLabel = new Map<string, { date: string; time: string }[]>();
+  for (const m of knockoutMatches) {
+    if (!m.round || !m.date) continue;
+    const label = ROUND_TO_LABEL[m.round];
+    if (!label) continue;
+    if (!byLabel.has(label)) byLabel.set(label, []);
+    byLabel.get(label)!.push({ date: m.date.toISOString().slice(0, 10), time: m.time ?? "" });
+  }
+
+  const updated = schedule.map(week => {
+    const slots = byLabel.get(week.label);
+    if (!slots || slots.length === 0) return week;
+    const dateGroups = new Map<string, string[]>();
+    for (const { date, time } of slots) {
+      if (!dateGroups.has(date)) dateGroups.set(date, []);
+      if (time) dateGroups.get(date)!.push(time);
+    }
+    const days = Array.from(dateGroups.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, times], i) => ({
+        id: week.days[i]?.id ?? `sync-${date}`,
+        date,
+        times: [...new Set(times)].sort(),
+      }));
+    return { ...week, days };
+  });
+
+  await prisma.tournament.update({ where: { id: tournamentId }, data: { schedule: updated as never } });
 }
