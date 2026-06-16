@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, ArrowRight, ArrowLeft, CheckCircle } from "lucide-react";
+import { Plus, Trash2, ArrowRight, ArrowLeft, CheckCircle, Camera } from "lucide-react";
+import Image from "next/image";
 import { PageContent, PageHeader, Card } from "@/components/ui/PageShell";
 import { createTeam } from "@/lib/actions/team";
 
@@ -31,6 +32,10 @@ export default function CreateTeamPage() {
   const [name, setName] = useState("");
   const [colors, setColors] = useState<string[]>([]);
   const [description, setDescription] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [logoLoading, setLogoLoading] = useState(false);
+  const [logoError, setLogoError] = useState("");
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
 
   // Step 2 state
@@ -39,6 +44,25 @@ export default function CreateTeamPage() {
   // Submit state
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoError("");
+    setLogoLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload-logo", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Yükleme başarısız.");
+      setLogoUrl(json.url);
+    } catch (e: unknown) {
+      setLogoError(e instanceof Error ? e.message : "Yükleme hatası.");
+    } finally {
+      setLogoLoading(false);
+    }
+  };
 
   const toggleColor = (hex: string) => {
     setColors(prev => {
@@ -67,6 +91,7 @@ export default function CreateTeamPage() {
         name: name.trim(),
         color: colors.join(",") || undefined,
         description: description || undefined,
+        logoUrl: logoUrl || undefined,
         players: validPlayers.map(p => ({
           name: p.name.trim(),
           number: p.number ? Number(p.number) : undefined,
@@ -108,6 +133,37 @@ export default function CreateTeamPage() {
                 className="w-full px-3 py-2.5 text-sm border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B]/30 focus:border-[#F59E0B]"
                 placeholder="örn. Yıldız FC"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[#374151] mb-2">Takım Logosu (isteğe bağlı)</label>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-xl border-2 border-dashed border-[#E5E7EB] overflow-hidden flex items-center justify-center bg-[#F9FAFB] shrink-0">
+                  {logoUrl ? (
+                    <Image src={logoUrl} alt="Logo" width={64} height={64} className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera size={22} className="text-[#D1D5DB]" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <input ref={logoInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleLogoChange} />
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoLoading}
+                    className="px-4 py-2 text-xs font-medium border border-[#E5E7EB] rounded-lg bg-white hover:bg-[#F4F6F9] transition-colors disabled:opacity-50"
+                  >
+                    {logoLoading ? "Yükleniyor..." : logoUrl ? "Logoyu Değiştir" : "Logo Yükle"}
+                  </button>
+                  {logoUrl && !logoLoading && (
+                    <button type="button" onClick={() => setLogoUrl("")} className="ml-2 text-xs text-[#9CA3AF] hover:text-[#EF4444] transition-colors">
+                      Kaldır
+                    </button>
+                  )}
+                  <p className="mt-1 text-[10px] text-[#9CA3AF]">JPG, PNG veya WebP · en fazla 2MB</p>
+                  {logoError && <p className="mt-1 text-xs text-red-500">{logoError}</p>}
+                </div>
+              </div>
             </div>
 
             <div>

@@ -1,4 +1,5 @@
 import { Plus, Users, Trophy } from "lucide-react";
+import Image from "next/image";
 import { PageContent, PageHeader, ActionButton, Card, StatusBadge } from "@/components/ui/PageShell";
 import Link from "next/link";
 import { getMyTeams } from "@/lib/actions/team";
@@ -30,7 +31,9 @@ export default async function MyTeamsPage() {
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-[#E5E7EB]">
-                      {colors.length > 0 ? (
+                      {t.logoUrl ? (
+                        <Image src={t.logoUrl} alt={t.name} width={48} height={48} className="w-full h-full object-cover" />
+                      ) : colors.length > 0 ? (
                         <div className="flex h-full">
                           {colors.map(c => (
                             <div key={c} className="flex-1" style={{ backgroundColor: c }} />

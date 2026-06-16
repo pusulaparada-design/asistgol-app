@@ -1,8 +1,9 @@
 "use client";
-import { useState, useTransition } from "react";
-import { Plus, Trash2, Trophy, Users } from "lucide-react";
+import { useState, useTransition, useRef } from "react";
+import { Plus, Trash2, Trophy, Users, Camera } from "lucide-react";
+import Image from "next/image";
 import { PageContent, PageHeader, Card, CardHeader, StatusBadge } from "@/components/ui/PageShell";
-import { addPlayerToTeam, removePlayerFromTeam } from "@/lib/actions/team";
+import { addPlayerToTeam, removePlayerFromTeam, updateTeamLogo } from "@/lib/actions/team";
 import type { getTeam } from "@/lib/actions/team";
 
 type Team = NonNullable<Awaited<ReturnType<typeof getTeam>>>;
@@ -60,12 +61,36 @@ export default function TeamDetailClient({ team }: { team: Team }) {
   const [players, setPlayers] = useState<Player[]>(team.players);
   const [isPending, startTransition] = useTransition();
 
+  // Logo
+  const [logo, setLogo] = useState<string | null>(team.logoUrl ?? null);
+  const [logoLoading, setLogoLoading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
   // Oyuncu ekleme formu
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
   const [addError, setAddError] = useState("");
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload-logo", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Yükleme başarısız.");
+      setLogo(json.url);
+      await updateTeamLogo(team.id, json.url);
+    } catch {
+      // sessiz hata
+    } finally {
+      setLogoLoading(false);
+    }
+  };
 
   const isLocked = team.registrations.length > 0;
   const colors = team.color ? team.color.split(",") : [];
@@ -125,10 +150,40 @@ export default function TeamDetailClient({ team }: { team: Team }) {
 
   return (
     <PageContent>
-      <PageHeader
-        title={team.name}
-        subtitle={`${players.length} oyuncu · Kaptan: ${team.captain.name}`}
-      />
+      <div className="flex items-center gap-4 mb-2">
+        {/* Logo */}
+        <div className="relative shrink-0 group">
+          <div className="w-16 h-16 rounded-xl overflow-hidden border border-[#E5E7EB] bg-[#F4F6F9] flex items-center justify-center">
+            {logo ? (
+              <Image src={logo} alt="Logo" width={64} height={64} className="w-full h-full object-cover" />
+            ) : colors.length > 0 ? (
+              <div className="flex w-full h-full">
+                {colors.map(c => <div key={c} className="flex-1" style={{ backgroundColor: c }} />)}
+              </div>
+            ) : (
+              <span className="text-2xl font-extrabold text-[#3B82F6]">{team.name[0]}</span>
+            )}
+          </div>
+          <button
+            onClick={() => logoInputRef.current?.click()}
+            disabled={logoLoading}
+            className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Logoyu değiştir"
+          >
+            {logoLoading ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Camera size={18} className="text-white" />
+            )}
+          </button>
+          <input ref={logoInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleLogoChange} />
+        </div>
+
+        <div>
+          <h1 className="text-xl font-extrabold text-[#111827]">{team.name}</h1>
+          <p className="text-sm text-[#6B7280]">{players.length} oyuncu · Kaptan: {team.captain.name}</p>
+        </div>
+      </div>
 
       {/* Sekmeler */}
       <div className="flex gap-1 p-1 bg-[#F4F6F9] rounded-xl w-fit">

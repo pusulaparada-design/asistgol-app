@@ -537,7 +537,7 @@ export default function ManageClient({
         <GroupsTab groups={groups} registrations={registrations} tournamentId={tournamentId} />
       )}
       {tab === "schedule" && (
-        <ScheduleTab weeks={matchWeeks} onChange={handleWeeksChange} />
+        <ScheduleTab weeks={matchWeeks} onChange={handleWeeksChange} readOnly={localMatches.length > 0} />
       )}
       {tab === "fixture" && (
         <FixtureTab

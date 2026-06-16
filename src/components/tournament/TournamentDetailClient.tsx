@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -138,6 +138,13 @@ export default function TournamentDetailClient({
   const [tab, setTab] = useState<TabKey>("gruplar");
   const [activeGroup, setActiveGroup] = useState(t.groups[0]?.id ?? "");
   const [detailMatch, setDetailMatch] = useState<TMatch | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 60);
+    window.addEventListener("scroll", fn, { passive: true });
+    return () => window.removeEventListener("scroll", fn);
+  }, []);
 
   const s              = effectiveStatus(t);
   const approvedRegs   = t.registrations.filter(r => r.status === "APPROVED");
@@ -171,68 +178,79 @@ export default function TournamentDetailClient({
   return (
     <div className="min-h-screen bg-[#F4F6F9]">
 
-      {/* ── HEADER + TAB BAR (sticky) ── */}
+      {/* ── HEADER + TAB BAR (sticky, mobile'de küçülen) ── */}
       <div className="sticky top-0 z-30">
-        <div className="bg-[#0F1F47] text-white px-4 sm:px-6 py-5 sm:py-6">
+        <div className="bg-[#0F1F47] text-white px-4 sm:px-6">
           <div className="max-w-6xl mx-auto">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <h1 className="text-2xl font-extrabold mb-1">{t.name}</h1>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/70">
-                  {t.city && <span className="flex items-center gap-1"><MapPin size={13} /> {t.city}{t.venue ? ` · ${t.venue}` : ""}</span>}
-                  <span className="flex items-center gap-1"><Calendar size={13} /> {fmt(t.startDate)} – {fmt(t.endDate)}</span>
-                  {t.prize && <span className="flex items-center gap-1"><Trophy size={13} /> {t.prize}</span>}
-                  {!isOrganizer && <span className="text-white/50">{t.organizer.name}</span>}
-                </div>
-              </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <StatusBadge label={s.label} variant={s.variant} dot={false} />
-                <div className="text-sm text-white/70">{approvedRegs.length}/{t.maxTeams} takım</div>
-                <div className="text-sm text-white/70">{FORMAT_LABELS[t.format] ?? t.format}</div>
+
+            {/* Her zaman görünen satır: başlık + aksiyon butonu */}
+            <div className={`flex items-center justify-between gap-3 transition-all duration-300 ${scrolled ? "py-2.5" : "pt-5 sm:pt-6"}`}>
+              <h1 className={`font-extrabold truncate min-w-0 transition-all duration-300 ${scrolled ? "text-[15px]" : "text-2xl"}`}>
+                {t.name}
+              </h1>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={scrolled ? "hidden sm:inline-flex" : ""}>
+                  <StatusBadge label={s.label} variant={s.variant} dot={false} />
+                </span>
                 {isOrganizer && (
                   <Link
                     href={`/organizer/tournaments/${t.id}/manage`}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#EF4444] text-white text-sm font-bold hover:bg-[#DC2626] transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-[#EF4444] text-white text-xs sm:text-sm font-bold hover:bg-[#DC2626] transition-colors"
                   >
-                    <Settings2 size={14} /> Yönet
+                    <Settings2 size={13} /> Yönet
                   </Link>
                 )}
                 {!isOrganizer && myRegistration && (
-                  <div className="flex flex-col items-end gap-1">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      myRegistration.status === "APPROVED"  ? "bg-[#ECFDF5] text-[#059669]" :
-                      myRegistration.status === "REJECTED"  ? "bg-[#FEF2F2] text-[#DC2626]" :
-                      "bg-white/10 text-white"
-                    }`}>
-                      {myRegistration.status === "APPROVED" ? "✓ Kayıtlısınız" :
-                       myRegistration.status === "REJECTED" ? "✗ Başvuru Reddedildi" :
-                       "⏳ Onay Bekliyor"}
-                    </span>
-                    {myRegistration.status === "REJECTED" && myRegistration.rejectionReason && (
-                      <span className="text-xs text-[#FCA5A5] text-right max-w-[220px]">Red sebebi: {myRegistration.rejectionReason}</span>
-                    )}
-                    {myRegistration.note && (
-                      <span className="text-xs text-white/50 text-right max-w-[220px]">Notunuz: {myRegistration.note}</span>
-                    )}
-                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                    myRegistration.status === "APPROVED" ? "bg-[#ECFDF5] text-[#059669]" :
+                    myRegistration.status === "REJECTED" ? "bg-[#FEF2F2] text-[#DC2626]" :
+                    "bg-white/10 text-white"
+                  }`}>
+                    {myRegistration.status === "APPROVED" ? "✓ Kayıtlı" :
+                     myRegistration.status === "REJECTED" ? "✗ Reddedildi" :
+                     "⏳ Bekliyor"}
+                  </span>
                 )}
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-3">
-              {[
-                { label: "Kayıtlı Takım", val: `${approvedRegs.length}/${t.maxTeams}` },
-                { label: "Oynanan Maç",   val: `${playedMatches.length}/${totalExp}` },
-                { label: "Toplam Gol",    val: totalGoals },
-                { label: "Sarı Kart",     val: totalYellow },
-                { label: "Kırmızı Kart",  val: totalRed },
-              ].map(st => (
-                <div key={st.label} className="bg-white/10 rounded-xl p-3 text-center">
-                  <div className="text-xl font-bold">{st.val}</div>
-                  <div className="text-xs text-white/60 mt-0.5">{st.label}</div>
-                </div>
-              ))}
+            {/* Daralan alan: detaylar + stat kartları (mobilde scroll edilince gizlenir) */}
+            <div className={`overflow-hidden transition-all duration-300 ${
+              scrolled ? "max-h-0 opacity-0 sm:max-h-[500px] sm:opacity-100" : "max-h-[500px] opacity-100"
+            }`}>
+              <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/70">
+                {t.city && <span className="flex items-center gap-1"><MapPin size={13} /> {t.city}{t.venue ? ` · ${t.venue}` : ""}</span>}
+                <span className="flex items-center gap-1"><Calendar size={13} /> {fmt(t.startDate)} – {fmt(t.endDate)}</span>
+                {t.prize && <span className="flex items-center gap-1"><Trophy size={13} /> {t.prize}</span>}
+                {!isOrganizer && <span className="text-white/50">{t.organizer.name}</span>}
+              </div>
+              <div className="mt-1 flex items-center gap-3 text-sm text-white/70">
+                <span>{approvedRegs.length}/{t.maxTeams} takım</span>
+                <span>{FORMAT_LABELS[t.format] ?? t.format}</span>
+              </div>
+              {!isOrganizer && myRegistration?.status === "REJECTED" && myRegistration.rejectionReason && (
+                <div className="mt-1 text-xs text-[#FCA5A5]">Red sebebi: {myRegistration.rejectionReason}</div>
+              )}
+              {!isOrganizer && myRegistration?.note && (
+                <div className="mt-0.5 text-xs text-white/50">Notunuz: {myRegistration.note}</div>
+              )}
+
+              <div className="mt-4 pb-5 sm:pb-6 hidden sm:grid sm:grid-cols-5 gap-3">
+                {[
+                  { label: "Kayıtlı Takım", val: `${approvedRegs.length}/${t.maxTeams}` },
+                  { label: "Oynanan Maç",   val: `${playedMatches.length}/${totalExp}` },
+                  { label: "Toplam Gol",    val: totalGoals },
+                  { label: "Sarı Kart",     val: totalYellow },
+                  { label: "Kırmızı Kart",  val: totalRed },
+                ].map(st => (
+                  <div key={st.label} className="bg-white/10 rounded-xl p-3 text-center">
+                    <div className="text-xl font-bold">{st.val}</div>
+                    <div className="text-xs text-white/60 mt-0.5">{st.label}</div>
+                  </div>
+                ))}
+              </div>
             </div>
+
           </div>
         </div>
 
@@ -356,23 +374,43 @@ export default function TournamentDetailClient({
                                   const homeWin  = isPlayed && m.homeScore! > m.awayScore!;
                                   const awayWin  = isPlayed && m.awayScore! > m.homeScore!;
                                   return (
-                                    <div key={m.id} onClick={() => setDetailMatch(m)} className="flex items-center gap-3 px-5 py-3 flex-wrap sm:flex-nowrap cursor-pointer hover:bg-[#F8FAFC] transition-colors">
-                                      <div className="w-32 shrink-0">
-                                        <div className="text-xs text-[#9CA3AF]">{m.date ? fmt(m.date) : <span className="text-[#D1D5DB]">—</span>}</div>
-                                        {m.time && <div className="text-xs font-medium text-[#6B7280]">{m.time}</div>}
-                                      </div>
-                                      <div className="flex-1 grid grid-cols-3 items-center gap-2 min-w-0">
-                                        <span className={`text-sm text-right truncate ${homeWin ? "font-bold text-[#111827]" : "font-medium text-[#6B7280]"}`}>{m.homeTeam.name}</span>
-                                        <span className={`text-center font-mono font-bold text-sm ${isPlayed ? "text-[#111827]" : "text-[#D1D5DB]"}`}>
-                                          {isPlayed ? `${m.homeScore} – ${m.awayScore}` : "– vs –"}
+                                    <div key={m.id} onClick={() => setDetailMatch(m)} className="px-4 py-2.5 cursor-pointer hover:bg-[#F8FAFC] transition-colors">
+                                      {/* Mobil: tarih+saat solda, durum sağda (sadece oynandı/canlı) */}
+                                      <div className="flex items-center justify-between mb-1 sm:hidden">
+                                        <span className="text-[11px] text-[#9CA3AF]">
+                                          {m.date ? fmt(m.date) : "—"}
+                                          {m.time && <span className="ml-1.5 font-medium text-[#6B7280]">{m.time}</span>}
                                         </span>
-                                        <span className={`text-sm truncate ${awayWin ? "font-bold text-[#111827]" : "font-medium text-[#6B7280]"}`}>{m.awayTeam.name}</span>
+                                        {m.status !== "SCHEDULED" && (
+                                          <StatusBadge
+                                            label={m.status === "PLAYED" ? "Oynandı" : "Canlı"}
+                                            variant={m.status === "PLAYED" ? "gray" : "green"}
+                                            dot={false}
+                                          />
+                                        )}
                                       </div>
-                                      <StatusBadge
-                                        label={m.status === "PLAYED" ? "Oynandı" : m.status === "LIVE" ? "Canlı" : "Planlandı"}
-                                        variant={m.status === "PLAYED" ? "gray" : m.status === "LIVE" ? "green" : "orange"}
-                                        dot={false}
-                                      />
+                                      {/* Takımlar + skor (her zaman görünür) */}
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span className={`flex-1 text-sm text-right truncate ${homeWin ? "font-bold text-[#111827]" : "font-medium text-[#6B7280]"}`}>{m.homeTeam.name}</span>
+                                        <span className={`shrink-0 w-12 text-center font-mono font-bold text-sm ${isPlayed ? "text-[#111827]" : "text-[#D1D5DB]"}`}>
+                                          {isPlayed ? `${m.homeScore}–${m.awayScore}` : "vs"}
+                                        </span>
+                                        <span className={`flex-1 text-sm truncate ${awayWin ? "font-bold text-[#111827]" : "font-medium text-[#6B7280]"}`}>{m.awayTeam.name}</span>
+                                        {/* Masaüstü: tarih+saat+durum sağda */}
+                                        <div className="hidden sm:flex items-center gap-3 shrink-0 ml-2">
+                                          <div className="text-right">
+                                            <div className="text-xs text-[#9CA3AF]">{m.date ? fmt(m.date) : "—"}</div>
+                                            {m.time && <div className="text-xs font-medium text-[#6B7280]">{m.time}</div>}
+                                          </div>
+                                          {m.status !== "SCHEDULED" && (
+                                            <StatusBadge
+                                              label={m.status === "PLAYED" ? "Oynandı" : "Canlı"}
+                                              variant={m.status === "PLAYED" ? "gray" : "green"}
+                                              dot={false}
+                                            />
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
                                   );
                                 })}
@@ -424,21 +462,47 @@ export default function TournamentDetailClient({
                         const homeWin  = isPlayed && m.homeScore! > m.awayScore!;
                         const awayWin  = isPlayed && m.awayScore! > m.homeScore!;
                         return (
-                          <div key={m.id} onClick={() => setDetailMatch(m)} className="flex items-center gap-3 px-5 py-3 flex-wrap sm:flex-nowrap cursor-pointer hover:bg-[#F8FAFC] transition-colors">
-                            <div className="w-36 shrink-0 text-xs text-[#9CA3AF]">{fmtLong(m.date)}</div>
-                            <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full ${contextVariant(m)}`}>{matchContext(m)}</span>
-                            <div className="flex-1 grid grid-cols-3 items-center gap-2 min-w-0">
-                              <span className={`text-sm text-right truncate ${homeWin ? "font-bold text-[#111827]" : "font-medium text-[#6B7280]"}`}>{m.homeTeam.name}</span>
-                              <span className={`text-center font-mono font-bold text-sm ${isPlayed ? "text-[#111827]" : "text-[#D1D5DB]"}`}>
-                                {isPlayed ? `${m.homeScore} – ${m.awayScore}` : "— vs —"}
-                              </span>
-                              <span className={`text-sm truncate ${awayWin ? "font-bold text-[#111827]" : "font-medium text-[#6B7280]"}`}>{m.awayTeam.name}</span>
+                          <div key={m.id} onClick={() => setDetailMatch(m)} className="px-4 py-2.5 cursor-pointer hover:bg-[#F8FAFC] transition-colors">
+                            {/* Mobil: tarih + tur + durum */}
+                            <div className="flex items-center justify-between mb-1 sm:hidden">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] text-[#9CA3AF]">
+                                  {m.date ? fmt(m.date) : "—"}
+                                  {m.time && <span className="ml-1 font-medium text-[#6B7280]">{m.time}</span>}
+                                </span>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${contextVariant(m)}`}>{matchContext(m)}</span>
+                              </div>
+                              {m.status !== "SCHEDULED" && (
+                                <StatusBadge
+                                  label={m.status === "PLAYED" ? "Oynandı" : "Canlı"}
+                                  variant={m.status === "PLAYED" ? "gray" : "green"}
+                                  dot={false}
+                                />
+                              )}
                             </div>
-                            <StatusBadge
-                              label={m.status === "PLAYED" ? "Oynandı" : m.status === "LIVE" ? "Canlı" : "Planlandı"}
-                              variant={m.status === "PLAYED" ? "gray" : m.status === "LIVE" ? "green" : "orange"}
-                              dot={false}
-                            />
+                            {/* Takımlar + skor */}
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className={`flex-1 text-sm text-right truncate ${homeWin ? "font-bold text-[#111827]" : "font-medium text-[#6B7280]"}`}>{m.homeTeam.name}</span>
+                              <span className={`shrink-0 w-12 text-center font-mono font-bold text-sm ${isPlayed ? "text-[#111827]" : "text-[#D1D5DB]"}`}>
+                                {isPlayed ? `${m.homeScore}–${m.awayScore}` : "vs"}
+                              </span>
+                              <span className={`flex-1 text-sm truncate ${awayWin ? "font-bold text-[#111827]" : "font-medium text-[#6B7280]"}`}>{m.awayTeam.name}</span>
+                              {/* Masaüstü: tarih+tur+durum sağda */}
+                              <div className="hidden sm:flex items-center gap-2 shrink-0 ml-2">
+                                <div className="text-right">
+                                  <div className="text-xs text-[#9CA3AF]">{m.date ? fmt(m.date) : "—"}</div>
+                                  {m.time && <div className="text-xs font-medium text-[#6B7280]">{m.time}</div>}
+                                </div>
+                                <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${contextVariant(m)}`}>{matchContext(m)}</span>
+                                {m.status !== "SCHEDULED" && (
+                                  <StatusBadge
+                                    label={m.status === "PLAYED" ? "Oynandı" : "Canlı"}
+                                    variant={m.status === "PLAYED" ? "gray" : "green"}
+                                    dot={false}
+                                  />
+                                )}
+                              </div>
+                            </div>
                           </div>
                         );
                       })}

@@ -12,6 +12,7 @@ export async function createTeam(data: {
   city?: string;
   color?: string;
   description?: string;
+  logoUrl?: string;
   players: { name: string; number?: number; position?: string }[];
 }) {
   const session = await getSession();
@@ -23,6 +24,7 @@ export async function createTeam(data: {
       city: data.city,
       color: data.color,
       description: data.description,
+      logoUrl: data.logoUrl,
       captainId: session.userId,
       players: {
         create: data.players.map((p) => ({
@@ -38,6 +40,19 @@ export async function createTeam(data: {
   revalidatePath("/captain/my-teams");
   logAction(session, `Takım oluşturuldu: ${data.name}`, { teamId: team.id }).catch(() => {});
   return team;
+}
+
+// ─── Takım logosu güncelle ────────────────────────────────────
+export async function updateTeamLogo(teamId: string, logoUrl: string | null) {
+  const session = await getSession();
+  if (!session || session.role !== "CAPTAIN") throw new Error("Yetkisiz.");
+
+  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { captainId: true } });
+  if (!team || team.captainId !== session.userId) throw new Error("Bu takımı düzenleme yetkiniz yok.");
+
+  await prisma.team.update({ where: { id: teamId }, data: { logoUrl } });
+  revalidatePath(`/captain/my-teams/${teamId}`);
+  revalidatePath("/captain/my-teams");
 }
 
 // ─── Kaptanın takımları ───────────────────────────────────────

@@ -106,6 +106,7 @@ model Team {
   city        String?
   color       String?
   description String?
+  logoUrl     String?
 
   captainId String
   captain   User   @relation("CaptainTeams", fields: [captainId], references: [id])

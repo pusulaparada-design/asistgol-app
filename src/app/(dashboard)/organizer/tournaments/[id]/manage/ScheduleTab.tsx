@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Plus, Trash2, Clock, CalendarPlus, Calendar, Pencil, Check, Copy, CopyPlus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Clock, CalendarPlus, Calendar, Pencil, Check, Copy, CopyPlus, ChevronLeft, ChevronRight, CheckCircle } from "lucide-react";
 import { Card } from "@/components/ui/PageShell";
 
 export interface MatchDay {
@@ -144,9 +144,11 @@ const KNOCKOUT_LABELS = ["Çeyrek Final", "Yarı Final", "Final", "3. Yer Maçı
 export default function ScheduleTab({
   weeks,
   onChange,
+  readOnly = false,
 }: {
   weeks: MatchWeek[];
   onChange: (weeks: MatchWeek[]) => void;
+  readOnly?: boolean;
 }) {
   const [pendingTimes, setPendingTimes] = useState<Record<string, string>>({});
   const [editingLabel, setEditingLabel] = useState<string | null>(null);
@@ -264,6 +266,60 @@ export default function ScheduleTab({
         ? { ...w, days: w.days.map(d => d.id === dayId ? { ...d, times: [...source.times] } : d) }
         : w
     ));
+  }
+
+  if (readOnly) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-start gap-2.5 px-4 py-3 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl text-xs text-[#166534]">
+          <CheckCircle size={14} className="shrink-0 mt-0.5 text-[#16A34A]" />
+          <span>Fikstür oluşturulduğu için maç günleri düzenlenemez. Tarih ve saat değişiklikleri için <strong>Fikstür</strong> sekmesini kullanın.</span>
+        </div>
+        {weeks.length === 0 ? (
+          <div className="py-10 text-center text-sm text-[#9CA3AF]">Maç günü tanımlanmamış.</div>
+        ) : (
+          <div className="space-y-3">
+            {weeks.map(week => {
+              const isEleme = KNOCKOUT_LABELS.includes(week.label);
+              return (
+                <Card key={week.id}>
+                  <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E5E7EB]">
+                    <span className={`w-8 h-8 shrink-0 text-xs font-bold rounded-lg flex items-center justify-center ${
+                      isEleme ? "bg-[#7C3AED] text-white" : "bg-[#0F1F47] text-white"
+                    }`}>
+                      {isEleme ? "★" : weeks.indexOf(week) + 1}
+                    </span>
+                    <span className="text-sm font-semibold text-[#111827]">{week.label}</span>
+                    <span className="text-xs text-[#9CA3AF]">
+                      {week.days.length} gün · {week.days.reduce((s, d) => s + d.times.length, 0)} slot
+                    </span>
+                  </div>
+                  <div className="divide-y divide-[#F3F4F6]">
+                    {[...week.days].sort((a, b) => a.date.localeCompare(b.date)).map(day => (
+                      <div key={day.id} className="flex items-center gap-4 px-4 py-3">
+                        <span className="text-sm text-[#374151] w-28 shrink-0">
+                          {day.date ? day.date.split("-").reverse().join("/") : "—"}
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {day.times.length === 0
+                            ? <span className="text-xs text-[#D1D5DB] italic">Saat eklenmedi</span>
+                            : day.times.map(t => (
+                              <span key={t} className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#EFF6FF] text-[#2563EB] text-xs font-semibold rounded-lg">
+                                <Clock size={10} />{t}
+                              </span>
+                            ))
+                          }
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
